@@ -2,9 +2,8 @@ import { AuthButton } from "@/components/auth/AuthButton";
 import { AuthTextInput } from "@/components/auth/AuthTextInput";
 import { PacetLogo } from "@/components/auth/PacetLogo";
 import { ThemedText } from "@/components/ThemedText";
-import { Colors } from "@/constants/Colors";
-import { mockUsers } from "@/constants/mockData";
-import { Link, useRouter } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
+import { Link } from "expo-router";
 import React, { useState } from "react";
 import {
     Alert,
@@ -13,28 +12,20 @@ import {
     SafeAreaView,
     StyleSheet,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 
 export default function LoginScreen() {
-  const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    const user = mockUsers.find(
-      (u) =>
-        u.email.toLowerCase() === email.toLowerCase() &&
-        u.password === password
-    );
-
-    if (user) {
-      // 로그인 성공
-      router.replace(`/(${user.role})`);
-    } else {
-      // 로그인 실패
+  const handleLogin = async () => {
+    const success = await signIn(email, password);
+    if (!success) {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
     }
+    // 로그인 성공 시 리디렉션은 AuthProvider가 자동으로 처리합니다.
   };
 
   return (
@@ -86,11 +77,10 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.pacet.lightBg,
+    backgroundColor: "#F7F8FA",
   },
   container: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
     padding: 20,
   },
@@ -100,14 +90,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.pacet.lightText,
+    color: "#8E8E93",
     marginTop: 8,
   },
   formCard: {
-    width: "100%",
-    maxWidth: 400,
     padding: 24,
-    backgroundColor: Colors.pacet.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     shadowColor: "#000",
     shadowOffset: {
@@ -122,7 +110,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     textAlign: "center",
-    color: Colors.pacet.darkText,
+    color: "#1C1C1E",
     marginBottom: 24,
   },
   link: {
@@ -130,11 +118,11 @@ const styles = StyleSheet.create({
   },
   linkText: {
     textAlign: "center",
-    color: Colors.pacet.mediumText,
+    color: "#8E8E93",
     fontSize: 14,
   },
   linkTextBold: {
     fontWeight: "bold",
-    color: Colors.pacet.primary,
+    color: "#007AFF",
   },
 }); 

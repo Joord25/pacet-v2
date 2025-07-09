@@ -1,46 +1,143 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ActionButtonGroup } from "@/components/trainer/ActionButtonGroup";
-import { TodayMemberItem } from "@/components/trainer/ScheduleItem";
+import { ScheduleItem } from "@/components/trainer/ScheduleItem";
 import { TrainerSummaryCard } from "@/components/trainer/TrainerSummaryCard";
-import { trainerMockData } from "@/constants/mockData";
-import React from "react";
-import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { allUsers, Session } from "@/constants/mocks";
+import { useAuth } from "@/context/AuthContext";
+import { useSessions } from "@/context/SessionContext";
+import { useNavigation, useRouter } from "expo-router";
+import React, { useLayoutEffect, useMemo } from "react";
+import {
+    FlatList,
+    SafeAreaView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from "react-native";
+
+// --- 데이터 처리 로직 ---
+const useTrainerDashboardData = (
+  trainerId: string,
+  sessions: Session[]
+) => {
+  const trainer = useMemo(
+    () => allUsers.find((u) => u.id === trainerId && u.role === "trainer"),
+    [trainerId]
+  );
+
+  const todaySessions = useMemo(() => {
+    // Timezone 문제를 해결하기 위해 로컬 시간 기준으로 오늘 날짜 계산
+    const today = new Date();
+    const today_utc = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+    const today_string = today_utc.toISOString().split("T")[0];
+
+    return sessions
+      .filter(
+        (s) =>
+          s.trainerId === trainerId &&
+          s.sessionDate === today_string &&
+          (s.status === "confirmed" || s.status === "attended" || s.status === "late" || s.status === "no-show" || s.status === 'pending')
+      )
+      .map((session) => {
+        const member = allUsers.find((u) => u.id === session.memberId);
+        return {
+          ...session,
+          memberName: member?.name || "알 수 없음",
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(`${a.sessionDate}T${a.sessionTime}`).getTime() -
+          new Date(`${b.sessionDate}T${b.sessionTime}`).getTime()
+      );
+  }, [trainerId, sessions]);
+
+  const stats = useMemo(() => {
+    const totalClasses = todaySessions.length;
+    const attendedClasses = todaySessions.filter(
+      (s) => s.status === "attended"
+    ).length;
+    return { totalClasses, attendedClasses };
+  }, [todaySessions]);
+
+  return { trainer, todaySessions, stats };
+};
+// --------------------
 
 export default function TrainerDashboardScreen() {
-  const {
-    totalClassesToday,
-    attendedClassesToday,
-    todayMembers,
-  } = trainerMockData;
+  const router = useRouter();
+  const navigation = useNavigation();
+  const { user } = useAuth();
+  const { sessions } = useSessions();
+
+  const { trainer, todaySessions, stats } = useTrainerDashboardData(
+    user?.id || "",
+    sessions
+  );
+
+  useLayoutEffect(() => {
+    if (trainer) {
+      navigation.setOptions({
+        title: `${trainer.name} 트레이너`,
+      });
+    }
+  }, [navigation, trainer]);
+
+  if (!trainer) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <ThemedText>트레이너 정보를 찾을 수 없습니다.</ThemedText>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  type TodaySession = (typeof todaySessions)[0];
+
+  const renderScheduleItem = ({ item }: { item: TodaySession }) => (
+    <TouchableOpacity
+      onPress={() => router.push(`/(common)/member/${item.memberId}`)}
+      activeOpacity={0.8}
+    >
+      <ScheduleItem session={item} />
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 1. 헤더: 트레이너 환영 메시지 (제거됨) */}
-
-        {/* 2. 오늘의 요약 카드 */}
-        <TrainerSummaryCard
-          totalClasses={totalClassesToday}
-          attendedClasses={attendedClassesToday}
-        />
-
-        {/* 3. 핵심 액션 버튼 그룹 */}
-        <ActionButtonGroup />
-
-        {/* 4. 오늘의 수업 목록 */}
-        <View>
-          <ThemedText style={styles.listTitle}>오늘의 회원님</ThemedText>
-          <View style={styles.listContainer}>
-            {todayMembers.map((member) => (
-              <TodayMemberItem key={member.id} member={member} />
-            ))}
-          </View>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.headerTitle}>
+            {trainer.name}님,
+          </ThemedText>
+          <ThemedText style={styles.headerSubtitle}>
+            오늘도 활기찬 하루 보내세요! 💪
+          </ThemedText>
         </View>
-      </ScrollView>
+
+        <TrainerSummaryCard
+          totalClasses={stats.totalClasses}
+          attendedClasses={stats.attendedClasses}
+        />
+        <ActionButtonGroup />
+        <ThemedText style={styles.listTitle}>오늘의 수업</ThemedText>
+
+        <FlatList
+          data={todaySessions}
+          renderItem={renderScheduleItem}
+          keyExtractor={(item) => item.sessionId}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <ThemedText style={styles.emptyText}>
+                오늘 예정된 수업이 없습니다.
+              </ThemedText>
+            </View>
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -52,19 +149,17 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  },
-  contentContainer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   header: {
     marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "900",
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#6b7280", // gray-500
     marginTop: 4,
   },
@@ -72,8 +167,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
+    color: "#1f2937",
   },
   listContainer: {
     gap: 12,
+    paddingBottom: 20,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 50,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6b7280",
   },
 }); 

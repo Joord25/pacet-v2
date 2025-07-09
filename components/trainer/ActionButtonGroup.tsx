@@ -2,16 +2,20 @@ import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { commonStyles } from "@/styles/commonStyles";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 export function ActionButtonGroup() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       {/* QR 출석체크 버튼 */}
       <TouchableOpacity
         style={[styles.qrButton, commonStyles.cardShadow]}
         activeOpacity={0.8}
+        onPress={() => router.push("/qr-scanner")}
       >
         <Ionicons name="qr-code" size={24} color="white" style={styles.icon} />
         <ThemedText style={styles.qrButtonText}>QR 출석체크</ThemedText>
@@ -22,6 +26,7 @@ export function ActionButtonGroup() {
         <TouchableOpacity
           style={[styles.smallButton, commonStyles.cardShadow]}
           activeOpacity={0.7}
+          onPress={() => router.push("/schedule")}
         >
           <Ionicons
             name="calendar-outline"
@@ -34,6 +39,7 @@ export function ActionButtonGroup() {
         <TouchableOpacity
           style={[styles.smallButton, commonStyles.cardShadow]}
           activeOpacity={0.7}
+          onPress={() => router.push("/(trainer)/report")}
         >
           <Ionicons
             name="bar-chart-outline"
@@ -54,7 +60,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   qrButton: {
-    backgroundColor: "#1f2937", // slate-800
+    backgroundColor: Colors.pacet.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

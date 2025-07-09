@@ -11,11 +11,17 @@ export const Colors = {
     primary: '#FF5C00',
     primaryDark: '#E05100', // for hover/press effect
     lightBg: '#FFF7ED', // bg-orange-50
+    darkBg: '#111827', // gray-900
     darkText: '#1f2937', // gray-800, for main text
     mediumText: '#4b5563', // gray-600, for labels
     lightText: '#6b7280', // gray-500, for placeholders
     border: '#d1d5db', // gray-300
     white: '#FFFFFF',
+    warning: '#d97706', // amber-600
+    warningMuted: '#fef3c7', // amber-100
+    info: '#2563eb', // blue-600
+    infoMuted: '#dbeafe', // blue-100
+    gray: '#f3f4f6', // gray-100
   },
   trainer: {
     gradientStart: '#0A3442',

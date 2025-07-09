@@ -2,7 +2,7 @@ import { HeaderRight } from "@/components/common/HeaderRight";
 import { Stack } from "expo-router";
 import React from "react";
 
-export default function TrainerLayout() {
+export default function MemberLayout() {
   return (
     <Stack>
       <Stack.Screen
@@ -12,10 +12,6 @@ export default function TrainerLayout() {
           headerRight: () => <HeaderRight />,
         }}
       />
-      <Stack.Screen
-        name="report"
-        options={{ headerTitle: "회원 리포트", headerBackTitle: "뒤로" }}
-      />
     </Stack>
   );
-} 
+}
