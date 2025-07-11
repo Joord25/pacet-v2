@@ -1,15 +1,19 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Colors } from "@/constants/Colors";
-import { DailySchedule, weeklyScheduleData } from "@/constants/mocks";
+import {
+  Appointment,
+  DailySchedule,
+  weeklyScheduleData,
+} from "@/constants/mocks";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
-    Dimensions,
-    FlatList,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -25,7 +29,7 @@ function DayCard({ item }: { item: DailySchedule }) {
       >{`${dayOfMonth} (${item.dayOfWeek})`}</ThemedText>
       <View style={styles.appointmentsContainer}>
         {item.appointments.length > 0 ? (
-          item.appointments.map((apt) => (
+          item.appointments.map((apt: Appointment) => (
             <View key={apt.time} style={styles.appointmentItem}>
               <ThemedText style={styles.appointmentText}>
                 {`${apt.time} ${apt.member}`}

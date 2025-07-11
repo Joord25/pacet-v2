@@ -19,9 +19,12 @@ export const Colors = {
     white: '#FFFFFF',
     warning: '#d97706', // amber-600
     warningMuted: '#fef3c7', // amber-100
-    info: '#2563eb', // blue-600
-    infoMuted: '#dbeafe', // blue-100
-    gray: '#f3f4f6', // gray-100
+    info: '#3B82F6', // blue-500
+    infoMuted: '#DBEAFE', // blue-100
+    success: '#16A34A', // green-600
+    successMuted: '#DCFCE7', // green-100
+    gray: '#E5E7EB', // coolGray-200
+    lightGray: '#F3F4F6', // coolGray-100
   },
   trainer: {
     gradientStart: '#0A3442',

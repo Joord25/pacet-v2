@@ -10,14 +10,17 @@ interface BookingListItemProps {
 }
 
 const statusConfig: Record<
-  Exclude<SessionStatus, "cancelled">,
+  SessionStatus,
   { label: string; color: string; bgColor: string }
 > = {
   confirmed: { label: "예약 확정", color: "#2563eb", bgColor: "#dbeafe" },
-  attended: { label: "수업 완료", color: "#16a34a", bgColor: "#dcfce7" },
+  completed: { label: "수업 완료", color: "#16a34a", bgColor: "#dcfce7" },
+  'member-attended': { label: "출석 완료", color: "#16a34a", bgColor: "#dcfce7" },
+  'trainer-attended': { label: "트레이너 확인", color: "#0891b2", bgColor: "#cffafe" },
   late: { label: "지각", color: "#a16207", bgColor: "#fef08a" },
   "no-show": { label: "회원님 불참", color: "#dc2626", bgColor: "#fee2e2" },
   pending: { label: "승인 대기중", color: "#f97316", bgColor: "#ffedd5" },
+  cancelled: { label: "취소됨", color: "#6b7280", bgColor: "#f3f4f6" }, // 타입 에러 해결을 위한 기본값
 };
 
 const cancelledStatusConfig = {
@@ -27,14 +30,12 @@ const cancelledStatusConfig = {
 };
 
 export function BookingListItem({ session, trainerName }: BookingListItemProps) {
-  const { sessionDate, status, cancellationReason } = session;
+  const { sessionDate, sessionTime, status, cancellationReason } = session;
 
-  let config;
-  if (status === "cancelled") {
-    config = cancelledStatusConfig[cancellationReason || "default"];
-  } else {
-    config = statusConfig[status as keyof typeof statusConfig];
-  }
+  let config =
+    status === "cancelled"
+      ? cancelledStatusConfig[cancellationReason || "default"]
+      : statusConfig[status] || { label: "알 수 없음", color: "#6b7280", bgColor: "#f3f4f6" };
 
   return (
     <View style={styles.container}>
@@ -42,7 +43,7 @@ export function BookingListItem({ session, trainerName }: BookingListItemProps) 
         <Ionicons name="calendar-outline" size={24} color="#4b5563" />
       </View>
       <View style={styles.detailsContainer}>
-        <ThemedText style={styles.dateText}>{sessionDate}</ThemedText>
+        <ThemedText style={styles.dateText}>{`${sessionDate} · ${sessionTime}`}</ThemedText>
         <ThemedText style={styles.trainerText}>{trainerName} 트레이너</ThemedText>
       </View>
       <View style={[styles.statusBadge, { backgroundColor: config.bgColor }]}>

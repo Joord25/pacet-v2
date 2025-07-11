@@ -2,9 +2,10 @@ import { ThemedText } from "@/components/ThemedText";
 import { ActionButtonGroup } from "@/components/trainer/ActionButtonGroup";
 import { ScheduleItem } from "@/components/trainer/ScheduleItem";
 import { TrainerSummaryCard } from "@/components/trainer/TrainerSummaryCard";
-import { allUsers, Session } from "@/constants/mocks";
+import { Session } from "@/constants/mocks";
 import { useAuth } from "@/context/AuthContext";
 import { useSessions } from "@/context/SessionContext";
+import { useUsers } from "@/context/UserContext";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useLayoutEffect, useMemo } from "react";
 import {
@@ -20,9 +21,10 @@ const useTrainerDashboardData = (
   trainerId: string,
   sessions: Session[]
 ) => {
+  const { users } = useUsers();
   const trainer = useMemo(
-    () => allUsers.find((u) => u.id === trainerId && u.role === "trainer"),
-    [trainerId]
+    () => users.find((u) => u.id === trainerId && u.role === "trainer"),
+    [trainerId, users]
   );
 
   const todaySessions = useMemo(() => {
@@ -36,10 +38,10 @@ const useTrainerDashboardData = (
         (s) =>
           s.trainerId === trainerId &&
           s.sessionDate === today_string &&
-          (s.status === "confirmed" || s.status === "attended" || s.status === "late" || s.status === "no-show" || s.status === 'pending')
+          s.status !== 'cancelled'
       )
       .map((session) => {
-        const member = allUsers.find((u) => u.id === session.memberId);
+        const member = users.find((u) => u.id === session.memberId);
         return {
           ...session,
           memberName: member?.name || "알 수 없음",
@@ -50,12 +52,12 @@ const useTrainerDashboardData = (
           new Date(`${a.sessionDate}T${a.sessionTime}`).getTime() -
           new Date(`${b.sessionDate}T${b.sessionTime}`).getTime()
       );
-  }, [trainerId, sessions]);
+  }, [trainerId, sessions, users]);
 
   const stats = useMemo(() => {
     const totalClasses = todaySessions.length;
     const attendedClasses = todaySessions.filter(
-      (s) => s.status === "attended"
+      (s) => s.status === "completed" || s.status === "trainer-attended"
     ).length;
     return { totalClasses, attendedClasses };
   }, [todaySessions]);

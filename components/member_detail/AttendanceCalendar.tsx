@@ -15,7 +15,15 @@ const statusColors: Record<
   SessionStatus,
   { background: string; text: string }
 > = {
-  attended: {
+  completed: {
+    background: Colors.light.successMuted,
+    text: Colors.light.success,
+  },
+  'member-attended': {
+    background: Colors.light.successMuted,
+    text: Colors.light.success,
+  },
+  'trainer-attended': {
     background: Colors.light.successMuted,
     text: Colors.light.success,
   },
@@ -30,6 +38,10 @@ const statusColors: Record<
   pending: {
     background: Colors.light.gray,
     text: Colors.light.textMuted,
+  },
+  confirmed: {
+    background: Colors.pacet.lightBg,
+    text: Colors.pacet.primary,
   },
   cancelled: {
     background: "transparent",
@@ -113,9 +125,10 @@ export function AttendanceCalendar({
         </View>
         <View style={styles.calendarGrid}>{renderCalendarDays()}</View>
         <View style={styles.legendContainer}>
-            <LegendItem label="출석" color={statusColors.attended.background} />
+            <LegendItem label="출석" color={statusColors.completed.background} />
             <LegendItem label="지각" color={statusColors.late.background} />
             <LegendItem label="결석" color={statusColors['no-show'].background} />
+            <LegendItem label="확정" color={statusColors.confirmed.background} />
             <LegendItem label="예정" color={statusColors.pending.background} />
         </View>
       </View>

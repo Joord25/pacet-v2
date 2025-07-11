@@ -215,9 +215,13 @@ export default function ScheduleScreen() {
 
     if (user?.role === "member") {
       // 회원 뷰
-      const upcomingSessions = memberSessions
-        .filter((s) => s.status === 'confirmed' || s.status === 'pending')
-        .sort((a,b) => new Date(a.sessionDate).getTime() - new Date(b.sessionDate).getTime());
+      const sessionsForDay = memberSessions
+        .filter((s) => s.sessionDate === format(selectedDate, "yyyy-MM-dd"))
+        .sort(
+          (a, b) =>
+            new Date(`${a.sessionDate}T${a.sessionTime}`).getTime() -
+            new Date(`${b.sessionDate}T${b.sessionTime}`).getTime()
+        );
 
       return (
         <View style={styles.memberContainer}>
@@ -227,9 +231,9 @@ export default function ScheduleScreen() {
             sessions={memberSessions}
           />
 
-          <ThemedText style={styles.listTitle}>예약된 수업</ThemedText>
+          <ThemedText style={styles.listTitle}>{format(selectedDate, "M월 d일")} 수업 기록</ThemedText>
           <FlatList
-            data={upcomingSessions}
+            data={sessionsForDay}
             renderItem={({ item }) => (
               <BookingListItem
                 session={item}
@@ -241,7 +245,7 @@ export default function ScheduleScreen() {
             keyExtractor={(item) => item.sessionId}
             ListEmptyComponent={
               <ThemedText style={styles.emptyText}>
-                예정된 수업이 없습니다.
+                선택한 날짜에 수업 기록이 없습니다.
               </ThemedText>
             }
             ItemSeparatorComponent={() => <View style={{ height: 12 }} />}

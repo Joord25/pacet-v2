@@ -1,17 +1,19 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Alert,
-    Modal,
-    Platform,
-    Pressable,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "../ThemedText";
+import type { IconSymbolName } from "../ui/IconSymbol";
 import { IconSymbol } from "../ui/IconSymbol";
+
 
 interface HeaderMenuProps {
   visible: boolean;
@@ -22,7 +24,11 @@ export function HeaderMenu({ visible, onClose }: HeaderMenuProps) {
   const { top } = useSafeAreaInsets();
   const router = useRouter();
 
-  const menuItems = [
+  const menuItems: {
+    label: string;
+    icon: IconSymbolName;
+    action: () => void;
+  }[] = [
     {
       label: "계정 정보",
       icon: "person.circle",

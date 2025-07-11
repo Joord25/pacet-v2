@@ -1,7 +1,9 @@
 export type SessionStatus =
   | "pending"
   | "confirmed" // 예약 확정 (트레이너가 승인)
-  | "attended" // 출석
+  | "completed" // 수업 완료 (양쪽 모두 출석)
+  | "member-attended" // 회원만 출석
+  | "trainer-attended" // 트레이너만 출석
   | "late" // 지각
   | "cancelled" // 'absent'를 대체하고, '사전 취소'를 의미
   | "no-show"; // '결석' 중에서도 '연락 없는 불참'을 의미
@@ -27,52 +29,6 @@ export interface Session {
 
 // --- 전체 세션 로그 ---
 export const allSessions: Session[] = [
-  // 김민지(member3)의 수업 기록 (총 10회 등록)
-  {
-    sessionId: "session1",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-04",
-    sessionTime: "18:00",
-    status: "late",
-    memo: "플랭크 자세 교정",
-  },
-  {
-    sessionId: "session2",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-06",
-    sessionTime: "18:00",
-    status: "attended",
-  },
-  {
-    sessionId: "session3",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-11",
-    sessionTime: "18:00",
-    status: "no-show",
-    cancellationReason: "member",
-    cancellationCode: "MEMBER_NOSHOW",
-    memo: "수업 시간 이후 연락 닿음. 개인 사정으로 불참.",
-  },
-  {
-    sessionId: "session4",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-13",
-    sessionTime: "18:00",
-    status: "late",
-  },
-  // 예정된 수업
-  {
-    sessionId: "session5",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-18", // 오늘이라고 가정
-    sessionTime: "20:00",
-    status: "pending",
-  },
   // 트레이너 사정으로 취소된 수업
   {
     sessionId: "session-cancelled-by-trainer",
@@ -84,18 +40,6 @@ export const allSessions: Session[] = [
     cancellationReason: "trainer",
     cancellationCode: "TRAINER_PERSONAL",
   },
-  // 회원이 사전에 요청하여 취소된 수업
-  {
-    sessionId: "session-cancelled-by-member",
-    memberId: "member3",
-    trainerId: "trainer1",
-    sessionDate: "2025-06-20",
-    sessionTime: "11:00",
-    status: "cancelled",
-    cancellationReason: "member",
-    cancellationCode: "MEMBER_REQUEST",
-  },
-
   // 최수빈(member1)의 수업 기록 (총 20회 등록)
   {
     sessionId: "session6",
@@ -103,6 +47,6 @@ export const allSessions: Session[] = [
     trainerId: "trainer1",
     sessionDate: "2025-06-18",
     sessionTime: "17:00",
-    status: "attended",
+    status: "completed",
   },
 ]; 

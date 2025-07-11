@@ -2,9 +2,10 @@ import { ThemedView } from "@/components/ThemedView";
 import { MemberReportCard } from "@/components/report/MemberReportCard";
 import { ReportListHeader } from "@/components/report/ReportListHeader";
 import { TotalSummaryCard } from "@/components/report/TotalSummaryCard";
-import { allSessions, allUsers } from "@/constants/mocks";
 import { useAuth } from "@/context/AuthContext";
-import React, { useEffect, useMemo, useState } from "react";
+import { useSessions } from "@/context/SessionContext";
+import { useUsers } from "@/context/UserContext";
+import React, { useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, View } from "react-native";
 
 type SortOrder = "default" | "rateDesc" | "rateAsc";
@@ -12,6 +13,7 @@ type SortOrder = "default" | "rateDesc" | "rateAsc";
 export type MemberReport = {
   id: string;
   name: string;
+  status?: "active" | "inactive";
   attendanceRate: number;
   latenessCount: number;
   absenceCount: number;
@@ -20,20 +22,23 @@ export type MemberReport = {
 
 // 로그인한 트레이너의 담당 회원 리포트를 생성하는 훅
 const useMemberReports = (trainerId: string | undefined): MemberReport[] => {
+  const { users } = useUsers();
+  const { sessions } = useSessions();
+
   return useMemo(() => {
     if (!trainerId) return [];
-    const myMembers = allUsers.filter(
+    const myMembers = users.filter(
       (user) => user.role === "member" && user.assignedTrainerId === trainerId
     );
     return myMembers.map((member) => {
-      const memberSessions = allSessions.filter(
+      const memberSessions = sessions.filter(
         (session) => session.memberId === member.id
       );
       const attendedCount = memberSessions.filter(
-        (s) => s.status === "attended" || s.status === "late"
+        (s) => s.status === "completed" || s.status === "late"
       ).length;
       const totalScheduled = memberSessions.filter(
-        (s) => s.status !== "pending" && s.status !== "cancelled"
+        (s) => s.status === "completed" || s.status === "late" || s.status === "no-show"
       ).length;
       const attendanceRate =
         totalScheduled > 0
@@ -45,69 +50,55 @@ const useMemberReports = (trainerId: string | undefined): MemberReport[] => {
       const absenceCount = memberSessions.filter(
         (s) => s.status === "no-show"
       ).length;
-      const usedPT = attendedCount;
+      const usedPT = memberSessions.filter(
+        s => s.status === 'completed' || s.status === 'late' || s.status === 'no-show'
+      ).length;
       const remainingPT = (member.ptTotalSessions || 0) - usedPT;
 
       return {
         id: member.id,
         name: member.name,
+        status: member.status,
         attendanceRate,
         latenessCount,
         absenceCount,
         remainingPT,
       };
     });
-  }, [trainerId]);
+  }, [trainerId, users, sessions]);
 };
 
 export default function MemberReportScreen() {
   const { user } = useAuth();
-  const initialMemberReports = useMemberReports(user?.id);
-
-  // 🚨 변경점 1: 회원 데이터를 '상태(state)'로 관리하여 업데이트가 가능하도록 함
-  const [members, setMembers] = useState<MemberReport[]>([]);
-  
-  useEffect(() => {
-    setMembers(initialMemberReports);
-  }, [initialMemberReports]);
+  const { addUserSessions } = useUsers();
+  const memberReports = useMemberReports(user?.id);
 
   const [sortOrder, setSortOrder] = useState<SortOrder>("rateAsc");
   
-  // 🚨 변경점 2: 정렬 로직이 state인 members를 바라보도록 수정
   const sortedMembers = useMemo(() => {
-    let newSortedMembers = [...members];
+    let newSortedMembers = [...memberReports];
     if (sortOrder === "rateDesc") {
       newSortedMembers.sort((a, b) => b.attendanceRate - a.attendanceRate);
     } else if (sortOrder === "rateAsc") {
       newSortedMembers.sort((a, b) => a.attendanceRate - b.attendanceRate);
     }
     return newSortedMembers;
-  }, [sortOrder, members]);
+  }, [sortOrder, memberReports]);
 
   const totalAttendanceRate = useMemo(() => {
-    if (members.length === 0) return 0;
-    const totalRate = members.reduce(
+    if (memberReports.length === 0) return 0;
+    const totalRate = memberReports.reduce(
       (sum, member) => sum + member.attendanceRate,
       0
     );
-    return Math.round(totalRate / members.length);
-  }, [members]);
+    return Math.round(totalRate / memberReports.length);
+  }, [memberReports]);
 
-  // 🚨 변경점 3: 수업 횟수를 업데이트하는 함수 정의
   const handleUpdateSessions = (memberId: string, sessionsToAdd: number) => {
-    setMembers(currentMembers =>
-      currentMembers.map(member => {
-        if (member.id === memberId) {
-          // 실제 앱에서는 DB의 ptTotalSessions를 업데이트하고 데이터를 다시 불러옵니다.
-          // 여기서는 예시로 remainingPT를 직접 수정합니다.
-          Alert.alert(
-            "수업 추가 완료",
-            `${member.name} 회원님에게 ${sessionsToAdd}회 수업이 추가되었습니다.`
-          );
-          return { ...member, remainingPT: member.remainingPT + sessionsToAdd };
-        }
-        return member;
-      })
+    addUserSessions(memberId, sessionsToAdd);
+    Alert.alert(
+      "수업 추가 완료",
+      `수업 ${sessionsToAdd}회가 성공적으로 추가되었습니다.`
     );
   };
 
@@ -118,7 +109,6 @@ export default function MemberReportScreen() {
       </View>
       <FlatList
         data={sortedMembers}
-        // 🚨 변경점 4: 업데이트 함수를 MemberReportCard에 props로 전달
         renderItem={({ item }) => (
           <MemberReportCard 
             member={item} 
@@ -128,7 +118,7 @@ export default function MemberReportScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <ReportListHeader
-            count={members.length}
+            count={memberReports.length}
             currentSort={sortOrder}
             onSortChange={setSortOrder}
           />

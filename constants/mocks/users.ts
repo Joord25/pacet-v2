@@ -1,15 +1,4 @@
-export type UserRole = "member" | "trainer" | "admin";
-
-export interface User {
-  id: string; // 'member1', 'trainer1' 등 고유 ID
-  email: string;
-  password?: string;
-  name: string;
-  role: UserRole;
-  // --- Member-specific fields ---
-  ptTotalSessions?: 10 | 20 | 30 | 50;
-  assignedTrainerId?: string; // 담당 트레이너 ID
-}
+import type { User } from "@/types";
 
 export const allUsers: User[] = [
   // --- Members ---
@@ -30,6 +19,7 @@ export const allUsers: User[] = [
     role: "member",
     ptTotalSessions: 30,
     assignedTrainerId: "trainer2", // 김창희 트레이너
+    status: "active",
   },
   {
     id: "member3",
@@ -39,6 +29,7 @@ export const allUsers: User[] = [
     role: "member",
     ptTotalSessions: 10,
     assignedTrainerId: "trainer1", // 박준호 트레이너
+    status: "inactive", // 계약 만료 회원으로 설정
   },
   {
     id: "member4",
@@ -48,6 +39,7 @@ export const allUsers: User[] = [
     role: "member",
     ptTotalSessions: 50,
     assignedTrainerId: "trainer3", // 심영지 트레이너
+    status: "active",
   },
 
   // --- Trainers ---

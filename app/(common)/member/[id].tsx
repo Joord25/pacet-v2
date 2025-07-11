@@ -5,52 +5,71 @@ import {
 import { CoachingNotes } from "@/components/member_detail/CoachingNotes";
 import { StatCard } from "@/components/member_detail/StatCard";
 import { Colors } from "@/constants/Colors";
-import { allSessions, allUsers, Session } from "@/constants/mocks";
+import { Session } from "@/constants/mocks";
+import { useSessions } from "@/context/SessionContext";
+import { useUsers } from "@/context/UserContext";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
 // 회원 상세 데이터와 통계를 계산하는 커스텀 훅
 const useMemberDetails = (memberId: string | undefined) => {
+  const { users } = useUsers();
+  const { sessions } = useSessions();
+
   const details = useMemo(() => {
     if (!memberId) return null;
 
-    const member = allUsers.find(
+    const member = users.find(
       (u) => u.id === memberId && u.role === "member"
     );
     if (!member) return null;
 
-    const sessions = allSessions.filter((s) => s.memberId === memberId);
+    const memberSessions = sessions.filter((s) => s.memberId === memberId);
 
-    const attended = sessions.filter(
-      (s) => s.status === "attended" || s.status === "late"
+    const completedSessions = memberSessions.filter(
+      (s) => s.status === "completed" || s.status === "late" || s.status === "no-show"
     ).length;
-    const lateness = sessions.filter((s) => s.status === "late").length;
-    const absence = sessions.filter((s) => s.status === "no-show").length;
-    const totalScheduled = sessions.filter(
-      (s) => s.status !== "pending" && s.status !== "cancelled"
+    const lateness = memberSessions.filter((s) => s.status === "late").length;
+    const absence = memberSessions.filter((s) => s.status === "no-show").length;
+    const latenessAndAbsence = lateness + absence;
+
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const monthlyPTSessions = memberSessions.filter(s => {
+      const sessionDate = new Date(s.sessionDate);
+      return (
+        (s.status === 'completed' || s.status === 'late') &&
+        sessionDate.getFullYear() === currentYear &&
+        sessionDate.getMonth() === currentMonth
+      );
+    }).length;
+
+    const totalScheduled = memberSessions.filter(
+      (s) => s.status === 'completed' || s.status === 'late' || s.status === 'no-show' || s.status === 'confirmed' || s.status === 'member-attended' || s.status === 'trainer-attended'
     ).length;
     const attendanceRate =
-      totalScheduled > 0 ? Math.round((attended / totalScheduled) * 100) : 100;
-    const remainingPT = (member.ptTotalSessions || 0) - attended;
+      totalScheduled > 0 ? Math.round(((completedSessions - absence) / totalScheduled) * 100) : 100;
+    const remainingPT = (member.ptTotalSessions || 0) - completedSessions;
 
-    const attendanceHistory = sessions.map((s: Session) => ({
+    const attendanceHistory = memberSessions.map((s: Session) => ({
       date: s.sessionDate,
       status: s.status,
     }));
 
-    const notes = sessions
+    const notes = memberSessions
       .filter((s) => s.memo)
       .map((s) => `${s.sessionDate}: ${s.memo}`)
       .join("\n");
 
     return {
       member,
-      stats: { attendanceRate, lateness, absence, remainingPT },
+      stats: { attendanceRate, latenessAndAbsence, monthlyPTSessions, remainingPT },
       calendar: { attendanceHistory },
       notes,
     };
-  }, [memberId]);
+  }, [memberId, users, sessions]);
 
   return details;
 };
@@ -87,10 +106,10 @@ export default function MemberDetailScreen() {
             />
           </View>
           <View style={styles.statCardWrapper}>
-            <StatCard label="총 지각" value={stats.lateness} unit="회" />
+            <StatCard label="총 지각 & 결석" value={stats.latenessAndAbsence} unit="회" />
           </View>
           <View style={styles.statCardWrapper}>
-            <StatCard label="총 결석" value={stats.absence} unit="회" />
+            <StatCard label="이번달 PT 진행수" value={stats.monthlyPTSessions} unit="회" />
           </View>
           <View style={styles.statCardWrapper}>
             <StatCard label="잔여 PT" value={stats.remainingPT} unit="회" />

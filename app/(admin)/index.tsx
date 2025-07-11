@@ -1,107 +1,105 @@
-import { StatCard } from "@/components/member_detail/StatCard";
-import { ThemedText } from "@/components/ThemedText";
-import { allUsers } from "@/constants/mocks";
-import { useAuth } from "@/context/AuthContext";
-import { useSessions } from "@/context/SessionContext";
-import { useNavigation } from "expo-router";
-import React, { useLayoutEffect, useMemo } from "react";
-import { SafeAreaView, StyleSheet, View } from "react-native";
+import { ManagementActions } from '@/components/admin/ManagementActions';
+import { MemberStatusList } from '@/components/admin/MemberStatusList';
+import { MonthlyProgressChart } from '@/components/admin/MonthlyProgressChart';
+import { MonthlyTotalSessions } from '@/components/admin/MonthlyTotalSessions';
+import { MonthNavigator } from '@/components/admin/MonthNavigator';
+import { StatCard } from '@/components/admin/StatCard';
+import { TrainerPerformanceList } from '@/components/admin/TrainerPerformanceList';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { Colors } from '@/constants/Colors';
+import { useAdminDashboard } from '@/hooks/useAdminDashboard';
+import { addMonths, subMonths } from 'date-fns';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-const useAdminDashboardData = () => {
-  const { sessions } = useSessions();
-  const users = allUsers;
-
-  return useMemo(() => {
-    // Timezone 문제를 해결하기 위해 로컬 시간 기준으로 오늘 날짜 계산
-    const today = new Date();
-    const today_utc = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
-    const today_string = today_utc.toISOString().split("T")[0];
-
-    const totalMembers = users.filter((u) => u.role === "member").length;
-    const totalTrainers = users.filter((u) => u.role === "trainer").length;
-
-    const todaysSessions = sessions.filter((s) => s.sessionDate === today_string);
-    const scheduledToday = todaysSessions.filter(
-      (s) => s.status === "confirmed" || s.status === "pending"
-    ).length;
-    const attendedToday = todaysSessions.filter(
-      (s) => s.status === "attended"
-    ).length;
-
-    return {
-      totalMembers,
-      totalTrainers,
-      scheduledToday,
-      attendedToday,
-    };
-  }, [sessions, users]);
-};
 
 export default function AdminDashboardScreen() {
-  const navigation = useNavigation();
-  const { user } = useAuth();
-  const stats = useAdminDashboardData();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const dashboardData = useAdminDashboard(selectedDate);
 
-  useLayoutEffect(() => {
-    if (user) {
-      navigation.setOptions({
-        title: `${user.name} 관리자`,
-      });
-    }
-  }, [navigation, user]);
+  const handlePrevMonth = () => {
+    setSelectedDate(prevDate => subMonths(prevDate, 1));
+  };
+
+  const handleNextMonth = () => {
+    // 미래 월은 선택하지 못하도록 막을 수 있습니다.
+    // if (isAfter(selectedDate, subMonths(new Date(), 1))) return;
+    setSelectedDate(prevDate => addMonths(prevDate, 1));
+  };
+
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title">종합 현황</ThemedText>
-        <ThemedText style={styles.subtitle}>
-          센터의 주요 지표를 확인하세요.
-        </ThemedText>
-      </View>
-      <View style={styles.statsContainer}>
-        <StatCard
-          label="총 회원"
-          value={`${stats.totalMembers}명`}
-          icon="person"
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ThemedView style={styles.content}>
+        <View style={styles.header}>
+          <ThemedText type="title">관리자 대시보드</ThemedText>
+          <ThemedText type="subtitle">PACET 센터의 모든 현황을 확인하고 관리하세요.</ThemedText>
+        </View>
+
+        <MonthNavigator 
+          currentDate={selectedDate}
+          onPrevMonth={handlePrevMonth}
+          onNextMonth={handleNextMonth}
         />
-        <StatCard
-          label="총 트레이너"
-          value={`${stats.totalTrainers}명`}
-          icon="people"
-        />
-        <StatCard
-          label="오늘 총 수업"
-          value={`${stats.scheduledToday + stats.attendedToday}건`}
-          icon="calendar"
-        />
-        <StatCard
-          label="출석 완료"
-          value={`${stats.attendedToday}건`}
-          icon="checkmark-done"
-        />
-      </View>
-    </SafeAreaView>
+
+        <ThemedText type="subtitle" style={styles.sectionTitle}>종합 KPI</ThemedText>
+        <View style={styles.kpiContainer}>
+          <StatCard
+            title="총 회원"
+            value={`${dashboardData.kpi.totalMembers}명`}
+          />
+          <StatCard
+            title="총 트레이너"
+            value={`${dashboardData.kpi.totalTrainers}명`}
+          />
+          <StatCard
+            title="회원 출석률 (이번 달)"
+            value={`${dashboardData.kpi.memberAttendanceRate}%`}
+            color={dashboardData.kpi.memberAttendanceRate >= 90 ? Colors.pacet.success : Colors.pacet.warning}
+          />
+          <StatCard
+            title="트레이너 약속이행률 (이번 달)"
+            value={`${dashboardData.kpi.trainerFulfillmentRate}%`}
+            color={dashboardData.kpi.trainerFulfillmentRate >= 90 ? Colors.pacet.success : Colors.pacet.warning}
+          />
+        </View>
+
+        <View style={styles.mainContent}>
+          <View style={styles.leftColumn}>
+            <MonthlyProgressChart 
+              data={dashboardData.monthlyProgress} 
+              trainers={dashboardData.trainersForPicker} // 👈 trainers prop 전달
+            />
+            <TrainerPerformanceList data={dashboardData.trainerPerformance} />
+          </View>
+          <View style={styles.rightColumn}>
+            <MonthlyTotalSessions count={dashboardData.totalMonthlySessions} />
+            <ManagementActions />
+            <MemberStatusList members={dashboardData.membersList} />
+          </View>
+        </View>
+      </ThemedView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9fafb",
-    padding: 20,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16,
-    justifyContent: "space-between",
-  },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    contentContainer: { paddingBottom: 24 },
+    content: { padding: 16 },
+    header: { marginBottom: 16 },
+    kpiContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
+    mainContent: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, marginHorizontal: -8 },
+    leftColumn: { flex: 2, minWidth: 300, paddingHorizontal: 8 },
+    rightColumn: { 
+      flex: 1, 
+      minWidth: 200, 
+      paddingHorizontal: 8,
+      gap: 16,
+    },
+    sectionTitle: {
+      marginBottom: 12,
+      paddingLeft: 4,
+    }
 }); 

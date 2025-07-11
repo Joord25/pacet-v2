@@ -3,19 +3,20 @@ import { MemberActionButtons } from "@/components/member/MemberActionButtons";
 import { MemberStatsGroup } from "@/components/member/MemberStatsGroup";
 import { UpcomingClassCard } from "@/components/member/UpcomingClassCard";
 import { ThemedText } from "@/components/ThemedText";
+import { Colors } from "@/constants/Colors";
 import {
-    allUsers,
-    Session,
-    User
+  Session
 } from "@/constants/mocks";
 import { useAuth } from "@/context/AuthContext";
 import { useSessions } from "@/context/SessionContext";
+import { useUsers } from "@/context/UserContext";
+import { User } from "@/types";
 import React, { useMemo } from "react";
 import {
-    FlatList,
-    SafeAreaView,
-    StyleSheet,
-    View
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  View
 } from "react-native";
 
 // --- 데이터 처리 로직 ---
@@ -23,9 +24,15 @@ const useMemberDashboardData = (
   memberId: string,
   sessions: Session[]
 ) => {
-  const member = allUsers.find(
-    (u: User) => u.id === memberId && u.role === "member"
-  );
+  const { users } = useUsers(); // 🚨 추가: UserContext에서 최신 사용자 목록 가져오기
+
+  const member = useMemo(() => {
+    // 🚨 변경: allUsers 대신 context의 users 배열에서 검색
+    return users.find(
+      (u: User) => u.id === memberId && u.role === "member"
+    );
+  }, [users, memberId]);
+  
   const memberSessions = sessions.filter((s) => s.memberId === memberId);
 
   const stats = useMemo(() => {
@@ -40,7 +47,7 @@ const useMemberDashboardData = (
       (s: Session) => s.status === "no-show"
     ).length;
     const usedSessions = memberSessions.filter(
-      (s: Session) => s.status === "attended" || s.status === "late" || s.status === "no-show"
+      (s: Session) => s.status === "completed" || s.status === "late" || s.status === "no-show"
     ).length;
 
     const totalSessions = member.ptTotalSessions || 0;
@@ -68,21 +75,32 @@ const useMemberDashboardData = (
     const nextSession = upcomingSessions[0];
     if (!nextSession) return null;
 
-    const trainer = allUsers.find((u: User) => u.id === nextSession.trainerId);
+    // 🚨 변경: allUsers 대신 context의 users 배열에서 검색
+    const trainer = users.find((u: User) => u.id === nextSession.trainerId);
     return {
       ...nextSession,
       trainerName: trainer?.name || "담당 트레이너",
     };
-  }, [memberSessions]);
+  }, [memberSessions, users]);
 
   const bookingHistory = useMemo(() => {
-    return [...memberSessions].sort(
-      (a: Session, b: Session) => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    return [...memberSessions]
+      .filter((s: Session) => {
+        const sessionDate = new Date(s.sessionDate);
+        return (
+          sessionDate.getFullYear() === currentYear &&
+          sessionDate.getMonth() === currentMonth
+        );
+      })
+      .sort((a: Session, b: Session) => {
         const aTime = new Date(`${a.sessionDate}T${a.sessionTime}`).getTime();
         const bTime = new Date(`${b.sessionDate}T${b.sessionTime}`).getTime();
         return bTime - aTime;
-      }
-    );
+      });
   }, [memberSessions]);
 
   return { member, stats, upcomingClass, bookingHistory };
@@ -92,6 +110,7 @@ const useMemberDashboardData = (
 export default function MemberDashboardScreen() {
   const { user } = useAuth();
   const { sessions } = useSessions();
+  const { users } = useUsers(); // 🚨 수정: Hook을 컴포넌트 최상단으로 이동
 
   const { member, stats, upcomingClass, bookingHistory } = useMemberDashboardData(
     user?.id || "",
@@ -106,8 +125,11 @@ export default function MemberDashboardScreen() {
     );
   }
 
+  const isInactive = member.status === 'inactive';
+
   const renderBookingItem = ({ item }: { item: Session }) => {
-    const trainer = allUsers.find((u: User) => u.id === item.trainerId);
+    // 🚨 수정: 이제 Hook 호출 없이 부모 스코프의 users 변수를 사용
+    const trainer = users.find((u: User) => u.id === item.trainerId);
     return (
       <BookingListItem
         session={item}
@@ -130,9 +152,18 @@ export default function MemberDashboardScreen() {
               </ThemedText>
             </View>
             
+            {isInactive && (
+              <View style={styles.inactiveContainer}>
+                <ThemedText style={styles.inactiveTitle}>계약 만료</ThemedText>
+                <ThemedText style={styles.inactiveText}>
+                  모든 세션이 종료되었습니다. 재등록을 원하시면 센터에 문의해주세요.
+                </ThemedText>
+              </View>
+            )}
+
             <UpcomingClassCard upcomingClass={upcomingClass} />
 
-            <MemberActionButtons />
+            <MemberActionButtons isInactive={isInactive} />
 
             <MemberStatsGroup
               remainingPT={stats.remainingPT}
@@ -178,5 +209,23 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#1f2937", // gray-800
     marginBottom: 12,
+  },
+  inactiveContainer: {
+    backgroundColor: Colors.pacet.warningMuted,
+    borderRadius: 16,
+    padding: 16,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: Colors.pacet.warning,
+  },
+  inactiveTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.pacet.warning,
+    marginBottom: 4,
+  },
+  inactiveText: {
+    fontSize: 14,
+    color: Colors.pacet.darkText,
   },
 }); 
