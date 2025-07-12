@@ -16,7 +16,7 @@ export function HeaderRight() {
       { text: "취소", style: "cancel" },
       {
         text: "로그아웃",
-        onPress: signOut,
+        onPress: signOut, // AsyncStorage.clear()를 제거하고 원래의 signOut 함수를 직접 호출
         style: "destructive",
       },
     ]);

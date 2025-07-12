@@ -61,9 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
+  const logout = async () => {
     setUser(null);
-    await AsyncStorage.removeItem("user");
+    // 🚨 임시 데이터 초기화 로직
+    // 로그아웃 시 사용자 데이터를 초기화하여 데이터 정합성 문제를 해결합니다.
+    await AsyncStorage.removeItem('@pacet-time-manager-users');
+    // 다른 데이터도 필요하다면 여기서 지울 수 있습니다.
+    // await AsyncStorage.removeItem('@pacet_contracts');
+    // await AsyncStorage.removeItem('@pacet_sessions');
+    
+    // Auth 정보만 제거
+    await AsyncStorage.removeItem('@user');
   };
 
   useEffect(() => {
@@ -93,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, segments, loading]);
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signOut, isLoading: loading }}>
+    <AuthContext.Provider value={{ user, signIn, signOut: logout, isLoading: loading }}>
       {children}
     </AuthContext.Provider>
   );

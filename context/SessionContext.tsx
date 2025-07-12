@@ -1,22 +1,34 @@
-import { allSessions, Session } from "@/constants/mocks";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { mockSessions } from '@/constants/mocks/sessions';
+import { Session } from '@/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useCallback, useEffect, useState } from 'react';
+import { useAuth } from './AuthContext';
 
-interface SessionContextType {
+const SESSIONS_STORAGE_KEY = '@pacet_sessions'; // 🚨 키 이름 변경
+
+export interface SessionContextType {
   sessions: Session[];
-  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
-  addSession: (sessionData: Omit<Session, "sessionId">) => void;
-  updateSession: (sessionId: string, updates: Partial<Omit<Session, 'sessionId'>>) => void;
-  updateSessionStatus: (sessionId: string, status: Session['status']) => void;
+  addSession: (session: Omit<Session, 'sessionId'>) => Promise<void>;
+  updateSession: (sessionId: string, data: Partial<Omit<Session, 'sessionId'>>) => Promise<void>;
+  updateSessionStatus: (sessionId: string, newStatus: Session['status']) => Promise<void>;
+  acceptRequest: (sessionId:string) => Promise<void>;
+  rejectRequest: (sessionId: string) => Promise<void>;
+  cancelSession: (sessionId: string) => Promise<void>;
+  getSessionById: (sessionId: string) => Session | undefined;
+  isDataLoaded: boolean; // 🚨 isDataLoaded 추가
+  requestSession: (newSessionData: Omit<Session, 'sessionId' | 'status'>) => Promise<void>;
 }
 
-const SessionContext = createContext<SessionContextType | undefined>(undefined);
-const SESSIONS_STORAGE_KEY = "@pacet_sessions";
+export const SessionContext = createContext<SessionContextType | undefined>(
+  undefined
+);
 
-export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
+export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth(); // 현재 로그인한 사용자 정보
+  const [isDataLoaded, setIsDataLoaded] = useState(false); // 🚨 isLoading -> isDataLoaded
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -25,79 +37,96 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         if (storedSessions) {
           setSessions(JSON.parse(storedSessions));
         } else {
-          // 데이터가 없으면 목 데이터를 초기값으로 설정하고 저장
-          setSessions(allSessions);
-          await AsyncStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(allSessions));
+          setSessions(mockSessions);
         }
       } catch (e) {
-        console.error("Failed to load sessions.", e);
-        // 에러 발생 시 목 데이터로 폴백
-        setSessions(allSessions);
+        console.error('Failed to load sessions:', e);
+        setSessions(mockSessions); // Fallback to mock data
       } finally {
-        setIsLoading(false);
+        setIsDataLoaded(true); // 🚨 로딩 완료 설정
       }
     };
-
     loadSessions();
   }, []);
 
   useEffect(() => {
-    // isLoading 중이거나 sessions가 비어있을 때는 저장하지 않음
-    if (!isLoading && sessions.length > 0) {
+    // 🚨 isDataLoaded 사용
+    if (isDataLoaded) {
       AsyncStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
     }
-  }, [sessions, isLoading]);
+  }, [sessions, isDataLoaded]);
 
 
-  const addSession = (sessionData: Omit<Session, "sessionId">) => {
+  const addSession = useCallback(async (sessionData: Omit<Session, 'sessionId'>) => {
     const newSession: Session = {
       ...sessionData,
-      sessionId: `session_${Date.now()}`,
-      status: "pending",
+      sessionId: `session_${Date.now()}`, // 🚨 sessionId로 변경
     };
-    setSessions((prev) => [...prev, newSession]);
-    Alert.alert(
-      "예약 요청 완료",
-      `${sessionData.sessionDate} ${sessionData.sessionTime}으로 예약 요청을 보냈습니다.`
+    setSessions(currentSessions => [...currentSessions, newSession]);
+  }, []);
+
+  const updateSession = useCallback(async (sessionId: string, data: Partial<Omit<Session, 'sessionId'>>) => {
+    setSessions(currentSessions =>
+      currentSessions.map((s) =>
+        s.sessionId === sessionId ? { ...s, ...data } : s
+      )
     );
-  };
+  }, []);
 
-  const updateSession = (sessionId: string, updates: Partial<Omit<Session, 'sessionId'>>) => {
-    let originalSession: Session | undefined;
-    setSessions(prevSessions => {
-      originalSession = prevSessions.find(s => s.sessionId === sessionId);
-      return prevSessions.map(session =>
-        session.sessionId === sessionId
-          ? { ...session, ...updates }
-          : session
-      );
-    });
+  const updateSessionStatus = useCallback(async (sessionId: string, newStatus: Session['status']) => {
+    setSessions(currentSessions =>
+      currentSessions.map((s) =>
+        s.sessionId === sessionId ? { ...s, status: newStatus } : s // 🚨 sessionId로 변경
+      )
+    );
+  }, []);
 
-    if (updates.status && originalSession) {
-      const { sessionDate, sessionTime } = originalSession;
-      if (updates.status === 'confirmed') {
-        Alert.alert(
-          "예약 수락",
-          `${sessionDate} ${sessionTime} 수업이 확정되었습니다.`
-        );
-      } else if (updates.status === 'cancelled' || updates.status === 'no-show') {
-        Alert.alert(
-          "예약 취소/변경",
-          `${sessionDate} ${sessionTime} 수업이 취소 또는 불참 처리되었습니다.`
-        );
-      }
+  const requestSession = async (newSessionData: Omit<Session, 'sessionId' | 'status'>) => {
+    try {
+      const newSession: Session = {
+        ...newSessionData,
+        sessionId: `session_${Date.now()}_${Math.random()}`,
+        status: 'requested',
+      };
+      const updatedSessions = [...sessions, newSession];
+      setSessions(updatedSessions);
+      await AsyncStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(updatedSessions));
+    } catch (error) {
+      console.error("Error requesting session:", error);
+      // TODO: 사용자에게 오류 알림
     }
   };
 
-  const updateSessionStatus = (sessionId: string, status: Session['status']) => {
-    setSessions(prevSessions =>
-      prevSessions.map(session =>
-        session.sessionId === sessionId ? { ...session, status } : session
-      )
-    );
-  };
+  const acceptRequest = useCallback(async (sessionId: string) => {
+    await updateSessionStatus(sessionId, 'confirmed');
+  }, [updateSessionStatus]);
 
-  const value = { sessions, setSessions, addSession, updateSession, updateSessionStatus };
+  const rejectRequest = useCallback(async (sessionId: string) => {
+    setSessions(currentSessions =>
+      currentSessions.filter(s => s.sessionId !== sessionId)
+    );
+  }, []);
+
+  const cancelSession = useCallback(async (sessionId: string) => {
+    await updateSessionStatus(sessionId, 'cancelled');
+  }, [updateSessionStatus]);
+
+  const getSessionById = useCallback((sessionId: string) => {
+    return sessions.find((s) => s.sessionId === sessionId); // 🚨 sessionId로 변경
+  }, [sessions]);
+
+  const value = { 
+    sessions, 
+    addSession, 
+    updateSession,
+    updateSessionStatus, // 🚨 이름 변경
+    acceptRequest,
+    rejectRequest,
+    cancelSession,
+    getSessionById, 
+    isDataLoaded, // 🚨 추가
+    requestSession, // 컨텍스트에 추가
+  };
 
   return (
     <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
@@ -105,7 +134,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
 };
 
 export function useSessions() {
-  const context = useContext(SessionContext);
+  const context = React.useContext(SessionContext);
   if (context === undefined) {
     throw new Error("useSessions must be used within a SessionProvider");
   }

@@ -1,6 +1,7 @@
 import type { MemberReport } from '@/app/(trainer)/report';
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from '@/constants/Colors'; // 색상 상수 임포트
+import { useContracts } from '@/context/ContractContext'; // 🚨 useContracts 훅 추가
 import { useUsers } from '@/context/UserContext';
 import { commonStyles } from "@/styles/commonStyles";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,17 +9,18 @@ import { useRouter } from "expo-router";
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
-import { AddSessionsModal } from './AddSessionsModal'; // 새로 만든 모달 컴포넌트
+import { ReInviteMemberModal } from './ReInviteMemberModal'; // 🚨 ReInviteMemberModal로 변경
 
 // props 타입 정의: 부모로부터 받을 데이터와 함수
 type MemberReportCardProps = {
   member: MemberReport;
-  onAddSessions: (memberId: string, sessionsToAdd: number) => void;
+  onAddSessions?: (memberId: string, sessionsToAdd: number) => void; // 🚨 onAddSessions는 이제 선택사항
 };
 
-export const MemberReportCard: React.FC<MemberReportCardProps> = ({ member, onAddSessions }) => {
+export const MemberReportCard: React.FC<MemberReportCardProps> = ({ member }) => {
   const router = useRouter();
   const { updateUserStatus } = useUsers();
+  const { reInviteMember } = useContracts(); // 🚨 reInviteMember 가져오기
   const isInactive = member.status === 'inactive';
   const [isModalVisible, setModalVisible] = useState(false);
 
@@ -28,15 +30,17 @@ export const MemberReportCard: React.FC<MemberReportCardProps> = ({ member, onAd
     ? Colors.pacet.info // 90% 미만일 때 '정보' 또는 '주의'를 나타내는 색상
     : Colors.pacet.primary; // 90% 이상일 때 주황색 계열
 
-  const handleAddPress = () => {
+  const handleReInvitePress = () => {
+    // 이미 진행중인 초대장이 있는지 확인
     setModalVisible(true);
   };
 
-  const handleModalSubmit = (sessions: number) => {
-    if (sessions > 0) {
-      onAddSessions(member.id, sessions);
+  const handleModalSubmit = async (totalSessions: number, price: number) => {
+    const success = await reInviteMember(member.id, totalSessions, price);
+    if (success) {
+      setModalVisible(false);
     }
-    setModalVisible(false);
+    return success; // 성공 여부 반환
   };
 
   const handleToggleStatus = () => {
@@ -66,13 +70,23 @@ export const MemberReportCard: React.FC<MemberReportCardProps> = ({ member, onAd
         disabled={isInactive}
       >
         <View style={styles.header}>
-          <ThemedText style={[styles.name, isInactive && styles.inactiveText]}>{member.name}</ThemedText>
+          <View style={styles.nameContainer}>
+            <ThemedText style={[styles.name, isInactive && styles.inactiveText]}>{member.name}</ThemedText>
+            {member.needsAttention && !isInactive && (
+              <View style={styles.attentionTag}>
+                <Ionicons name="warning-outline" size={14} color={Colors.pacet.warning} />
+                <ThemedText style={styles.attentionText}>관심 요망</ThemedText>
+              </View>
+            )}
+          </View>
           <Menu>
             <MenuTrigger>
               <Ionicons name="ellipsis-vertical" size={24} color={isInactive ? '#9ca3af' : Colors.pacet.darkText} />
             </MenuTrigger>
             <MenuOptions customStyles={menuStyles}>
-              <MenuOption onSelect={handleAddPress} text='세션 추가' />
+              <MenuOption onSelect={handleReInvitePress}>
+                <ThemedText>재등록 초대</ThemedText>
+              </MenuOption>
               <MenuOption onSelect={handleToggleStatus}>
                 <ThemedText style={{ color: isInactive ? Colors.pacet.success : Colors.pacet.warning }}>
                   {isInactive ? '계정 활성화' : '계정 비활성화'}
@@ -119,10 +133,10 @@ export const MemberReportCard: React.FC<MemberReportCardProps> = ({ member, onAd
         </View>
       </TouchableOpacity>
 
-      <AddSessionsModal
-        isVisible={isModalVisible}
+      <ReInviteMemberModal
+        visible={isModalVisible}
         onClose={() => setModalVisible(false)}
-        onSubmit={handleModalSubmit}
+        onInvite={handleModalSubmit}
         memberName={member.name}
       />
     </>
@@ -167,9 +181,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderBottomColor: "#e5e7eb",
   },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   name: {
     fontSize: 18,
     fontWeight: "bold",
+  },
+  attentionTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.pacet.warningMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  attentionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.pacet.warning,
   },
   statsContainer: {
     flexDirection: "row",

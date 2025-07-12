@@ -9,7 +9,7 @@ export const allUsers: User[] = [
     name: "최수빈",
     role: "member",
     ptTotalSessions: 20,
-    assignedTrainerId: "trainer1", // 박준호 트레이너
+    trainerId: "trainer1", // 박준호 트레이너
   },
   {
     id: "member2",
@@ -18,7 +18,7 @@ export const allUsers: User[] = [
     name: "이정훈",
     role: "member",
     ptTotalSessions: 30,
-    assignedTrainerId: "trainer2", // 김창희 트레이너
+    trainerId: "trainer2", // 김창희 트레이너
     status: "active",
   },
   {
@@ -28,8 +28,8 @@ export const allUsers: User[] = [
     name: "김민지",
     role: "member",
     ptTotalSessions: 10,
-    assignedTrainerId: "trainer1", // 박준호 트레이너
-    status: "inactive", // 계약 만료 회원으로 설정
+    trainerId: "trainer1", // 박준호 트레이너
+    status: "active", // 'inactive' 에서 'active'로 변경
   },
   {
     id: "member4",
@@ -38,7 +38,7 @@ export const allUsers: User[] = [
     name: "김영희",
     role: "member",
     ptTotalSessions: 50,
-    assignedTrainerId: "trainer3", // 심영지 트레이너
+    trainerId: "trainer3", // 심영지 트레이너
     status: "active",
   },
 

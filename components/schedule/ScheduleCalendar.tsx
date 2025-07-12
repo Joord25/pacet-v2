@@ -1,5 +1,5 @@
 import { Colors } from "@/constants/Colors";
-import { Session } from "@/constants/mocks";
+import type { Session } from "@/types";
 import React, { useMemo } from "react";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 import { DateData } from "react-native-calendars/src/types";
@@ -54,21 +54,13 @@ export function ScheduleCalendar({
     const marks: { [key: string]: any } = {};
 
     sessions.forEach((session) => {
-      const date = session.sessionDate;
-      if (!marks[date]) {
-        marks[date] = { dots: [] };
-      }
-      marks[date].dots.push({
-        key: session.sessionId,
-        color:
-          session.status === "confirmed" ? Colors.pacet.primary : Colors.pacet.warning,
-      });
+      // session.status !== 'cancelled' 와 같은 필터링은 사용하는 쪽에서 미리 처리한다고 가정
+      marks[session.sessionDate] = { marked: true, dotColor: Colors.pacet.primary };
     });
     
-    // Add selected date marking
-    const selectedDateKey = selectedDate.split("T")[0];
-    marks[selectedDateKey] = {
-      ...marks[selectedDateKey],
+    // 선택된 날짜 마킹
+    marks[selectedDate] = {
+      ...marks[selectedDate],
       selected: true,
       selectedColor: Colors.pacet.primary,
       disableTouchEvent: true,
@@ -83,7 +75,6 @@ export function ScheduleCalendar({
       onDayPress={(day: DateData) => onDateSelect(day.dateString)}
       monthFormat={"yyyy년 M월"}
       theme={calendarTheme}
-      markingType={"multi-dot"}
       markedDates={markedDates}
     />
   );

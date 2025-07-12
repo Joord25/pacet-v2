@@ -2,9 +2,12 @@ import { AuthButton } from "@/components/auth/AuthButton";
 import { AuthTextInput } from "@/components/auth/AuthTextInput";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
+import { useContracts } from "@/context/ContractContext";
+import { useUsers } from "@/context/UserContext";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
@@ -15,6 +18,84 @@ import {
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { addUser, users } = useUsers();
+  const { linkInvitation, contracts } = useContracts();
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [invitationInfo, setInvitationInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkInvitation = () => {
+      if (!email) {
+        setInvitationInfo(null);
+        return;
+      }
+
+      const invitation = contracts.find(c =>
+        c.invitedEmail?.toLowerCase() === email.toLowerCase() &&
+        c.status === 'invited'
+      );
+
+      if (invitation) {
+        const trainer = users.find(u => u.id === invitation.trainerId);
+        const trainerName = trainer ? trainer.name : '트레이너';
+        setInvitationInfo(`✨ ${trainerName}님으로부터 온 초대장이 있습니다!`);
+      } else {
+        setInvitationInfo(null);
+      }
+    };
+
+    // Debounce check
+    const handler = setTimeout(() => {
+      checkInvitation();
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [email, contracts, users]);
+
+  const handleSignUp = () => {
+    // 1. Validation
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("입력 오류", "모든 필드를 입력해주세요.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("입력 오류", "비밀번호가 일치하지 않습니다.");
+      return;
+    }
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("입력 오류", "유효한 이메일 주소를 입력해주세요.");
+      return;
+    }
+    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        Alert.alert("가입 실패", "이미 사용 중인 이메일입니다.");
+        return;
+    }
+
+    // 2. Add user
+    const newUser = addUser({ name, email, password });
+
+    // 3. Link invitation if exists
+    linkInvitation(newUser.email, newUser.id);
+    
+    // 4. Notify and navigate
+    Alert.alert(
+      "회원가입 성공",
+      "회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.",
+      [
+        {
+          text: "확인",
+          onPress: () => router.back(),
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -28,24 +109,35 @@ export default function SignUpScreen() {
             label="이름"
             placeholder="홍길동"
             autoCapitalize="words"
+            value={name}
+            onChangeText={setName}
           />
           <AuthTextInput
             label="이메일 (ID)"
             placeholder="email@example.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
           />
+          <View style={styles.invitationContainer}>
+            {invitationInfo && <ThemedText style={styles.invitationText}>{invitationInfo}</ThemedText>}
+          </View>
           <AuthTextInput
             label="비밀번호"
             placeholder="••••••••"
             secureTextEntry
+            value={password}
+            onChangeText={setPassword}
           />
           <AuthTextInput
             label="비밀번호 확인"
             placeholder="••••••••"
             secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
           />
-          <AuthButton title="회원가입 완료" onPress={() => {}} />
+          <AuthButton title="회원가입 완료" onPress={handleSignUp} />
         </View>
 
         <TouchableOpacity style={styles.link} onPress={() => router.back()}>
@@ -104,4 +196,15 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.pacet.primary,
   },
+  invitationContainer: {
+    height: 20, // 항상 고정된 높이를 차지하도록 설정
+    justifyContent: 'center',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  invitationText: {
+    textAlign: 'center',
+    color: Colors.pacet.primary,
+    fontWeight: '600'
+  }
 }); 

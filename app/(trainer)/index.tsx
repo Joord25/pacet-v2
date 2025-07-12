@@ -1,17 +1,21 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ActionButtonGroup } from "@/components/trainer/ActionButtonGroup";
+import { InviteMemberModal } from "@/components/trainer/InviteMemberModal";
 import { ScheduleItem } from "@/components/trainer/ScheduleItem";
 import { TrainerSummaryCard } from "@/components/trainer/TrainerSummaryCard";
-import { Session } from "@/constants/mocks";
+import { Colors } from "@/constants/Colors"; // 오렌지색 사용을 위해 import
 import { useAuth } from "@/context/AuthContext";
+import { useContracts } from "@/context/ContractContext"; // 🚨 계약 정보 가져오기
 import { useSessions } from "@/context/SessionContext";
 import { useUsers } from "@/context/UserContext";
+import { Session } from "@/types"; // 🚨 @/types에서 직접 가져오도록 수정
+import { Ionicons } from "@expo/vector-icons"; // 아이콘 사용을 위해 import
 import { useNavigation, useRouter } from "expo-router";
-import React, { useLayoutEffect, useMemo } from "react";
+import React, { useLayoutEffect, useMemo, useState } from "react"; // 🚨 useState 추가
 import {
     FlatList,
     SafeAreaView,
-    StyleSheet,
+    StyleSheet, // 🚨 Modal 추가
     TouchableOpacity,
     View,
 } from "react-native";
@@ -19,7 +23,8 @@ import {
 // --- 데이터 처리 로직 ---
 const useTrainerDashboardData = (
   trainerId: string,
-  sessions: Session[]
+  sessions: Session[],
+  contracts: any[] // 🚨 contracts 추가
 ) => {
   const { users } = useUsers();
   const trainer = useMemo(
@@ -28,10 +33,12 @@ const useTrainerDashboardData = (
   );
 
   const todaySessions = useMemo(() => {
-    // Timezone 문제를 해결하기 위해 로컬 시간 기준으로 오늘 날짜 계산
+    // 로컬 시간 기준으로 오늘의 YYYY-MM-DD 문자열을 생성
     const today = new Date();
-    const today_utc = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
-    const today_string = today_utc.toISOString().split("T")[0];
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const today_string = `${year}-${month}-${day}`;
 
     return sessions
       .filter(
@@ -59,8 +66,35 @@ const useTrainerDashboardData = (
     const attendedClasses = todaySessions.filter(
       (s) => s.status === "completed" || s.status === "trainer-attended"
     ).length;
-    return { totalClasses, attendedClasses };
-  }, [todaySessions]);
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthlySessions = sessions.filter(s => {
+      const sessionDate = new Date(s.sessionDate);
+      return (
+        s.trainerId === trainerId &&
+        ['completed', 'late', 'no-show'].includes(s.status) &&
+        sessionDate.getFullYear() === currentYear &&
+        sessionDate.getMonth() === currentMonth
+      );
+    }).length;
+
+    const monthlySales = contracts
+      .filter(c => {
+        const startDate = new Date(c.startDate);
+        return (
+          c.trainerId === trainerId &&
+          c.status === 'active' &&
+          startDate.getFullYear() === currentYear &&
+          startDate.getMonth() === currentMonth
+        );
+      })
+      .reduce((sum, c) => sum + c.price, 0);
+
+    return { totalClasses, attendedClasses, monthlySessions, monthlySales };
+  }, [trainerId, sessions, contracts, todaySessions]);
 
   return { trainer, todaySessions, stats };
 };
@@ -71,10 +105,14 @@ export default function TrainerDashboardScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { sessions } = useSessions();
+  const { contracts, inviteMember } = useContracts(); 
+
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const { trainer, todaySessions, stats } = useTrainerDashboardData(
     user?.id || "",
-    sessions
+    sessions,
+    contracts
   );
 
   useLayoutEffect(() => {
@@ -121,6 +159,8 @@ export default function TrainerDashboardScreen() {
         <TrainerSummaryCard
           totalClasses={stats.totalClasses}
           attendedClasses={stats.attendedClasses}
+          monthlySessions={stats.monthlySessions}
+          monthlySales={stats.monthlySales}
         />
         <ActionButtonGroup />
         <ThemedText style={styles.listTitle}>오늘의 수업</ThemedText>
@@ -140,6 +180,21 @@ export default function TrainerDashboardScreen() {
           }
         />
       </View>
+
+      <InviteMemberModal
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        onInvite={inviteMember}
+      />
+
+      {/* --- 회원 초대 플로팅 버튼 --- */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setIsModalVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="person-add-outline" size={24} color={Colors.pacet.white} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -147,7 +202,7 @@ export default function TrainerDashboardScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f9fafb", // gray-50
+    backgroundColor: Colors.pacet.lightBg,
   },
   container: {
     flex: 1,
@@ -162,18 +217,18 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 18,
-    color: "#6b7280", // gray-500
+    color: Colors.pacet.lightText,
     marginTop: 4,
   },
   listTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 16,
-    color: "#1f2937",
+    color: Colors.pacet.darkText,
   },
   listContainer: {
     gap: 12,
-    paddingBottom: 20,
+    paddingBottom: 100, // FAB에 가려지지 않도록 충분한 패딩 추가
   },
   emptyContainer: {
     flex: 1,
@@ -183,6 +238,23 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#6b7280",
+    color: Colors.pacet.lightText,
+  },
+  // --- Modal Styles ---
+  fab: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 20,
+    bottom: 20,
+    backgroundColor: Colors.pacet.primary, // 오렌지색
+    borderRadius: 28,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 }); 

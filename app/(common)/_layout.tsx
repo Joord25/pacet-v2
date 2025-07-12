@@ -23,7 +23,6 @@ export default function CommonLayout() {
       <Stack.Screen
         name="member/[id]"
         options={{
-          title: "회원 상세 정보",
           headerLeft: renderHeaderLeft,
         }}
       />

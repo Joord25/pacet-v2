@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
-import { SessionStatus } from "@/constants/mocks";
 import { commonStyles } from "@/styles/commonStyles";
+import { SessionStatus } from "@/types";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -35,7 +35,7 @@ const statusColors: Record<
     background: Colors.light.errorMuted,
     text: Colors.light.error,
   },
-  pending: {
+  requested: { // 'pending'을 'requested'로 변경
     background: Colors.light.gray,
     text: Colors.light.textMuted,
   },
@@ -129,7 +129,7 @@ export function AttendanceCalendar({
             <LegendItem label="지각" color={statusColors.late.background} />
             <LegendItem label="결석" color={statusColors['no-show'].background} />
             <LegendItem label="확정" color={statusColors.confirmed.background} />
-            <LegendItem label="예정" color={statusColors.pending.background} />
+            <LegendItem label="예정" color={statusColors.requested.background} />
         </View>
       </View>
     </View>

@@ -18,6 +18,7 @@ export type MemberReport = {
   latenessCount: number;
   absenceCount: number;
   remainingPT: number;
+  needsAttention: boolean; // 🚨 '관심 요망' 상태를 위한 필드 추가
 };
 
 // 로그인한 트레이너의 담당 회원 리포트를 생성하는 훅
@@ -28,7 +29,7 @@ const useMemberReports = (trainerId: string | undefined): MemberReport[] => {
   return useMemo(() => {
     if (!trainerId) return [];
     const myMembers = users.filter(
-      (user) => user.role === "member" && user.assignedTrainerId === trainerId
+      (user) => user.role === "member" && user.trainerId === trainerId
     );
     return myMembers.map((member) => {
       const memberSessions = sessions.filter(
@@ -44,9 +45,14 @@ const useMemberReports = (trainerId: string | undefined): MemberReport[] => {
         totalScheduled > 0
           ? Math.round((attendedCount / totalScheduled) * 100)
           : 100;
+      
+      const needsAttention = attendanceRate < 90; // 출석률 90% 미만 시 '관심 요망'
+
+      // 'late' 상태 대신, 저장된 출석 시간을 기준으로 지각을 다시 계산합니다.
       const latenessCount = memberSessions.filter(
-        (s) => s.status === "late"
+        (s) => s.memberCheckInTime && new Date(s.memberCheckInTime) > new Date(`${s.sessionDate}T${s.sessionTime}`)
       ).length;
+
       const absenceCount = memberSessions.filter(
         (s) => s.status === "no-show"
       ).length;
@@ -63,6 +69,7 @@ const useMemberReports = (trainerId: string | undefined): MemberReport[] => {
         latenessCount,
         absenceCount,
         remainingPT,
+        needsAttention, // 🚨 반환 객체에 추가
       };
     });
   }, [trainerId, users, sessions]);

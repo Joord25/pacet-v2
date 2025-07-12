@@ -8,10 +8,11 @@ const tintColorDark = '#fff';
 
 export const Colors = {
   pacet: {
-    primary: '#FF5C00',
-    primaryDark: '#E05100', // for hover/press effect
-    lightBg: '#FFF7ED', // bg-orange-50
-    darkBg: '#111827', // gray-900
+    primary: '#FF773A',
+    primaryDark: '#E66324', // for hover/press effect
+    primaryMuted: '#FFEFE7', // primary 색상의 연한 버전
+    lightBg: '#F7F8FA', // bg-orange-50
+    darkBg: '#1A1A1A', // gray-900
     darkText: '#1f2937', // gray-800, for main text
     mediumText: '#4b5563', // gray-600, for labels
     lightText: '#6b7280', // gray-500, for placeholders

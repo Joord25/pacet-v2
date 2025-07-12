@@ -16,7 +16,7 @@ export function HeaderBackButton({ tintColor }: HeaderButtonProps) {
   }
 
   return (
-    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
+    <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 0, marginLeft: 0 }}>
       <Ionicons name="chevron-back" size={24} color={tintColor} />
     </TouchableOpacity>
   );

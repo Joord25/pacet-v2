@@ -1,22 +1,22 @@
 import { BookingListItem } from "@/components/member/BookingListItem";
+import { InvitationModal } from "@/components/member/InvitationModal";
 import { MemberActionButtons } from "@/components/member/MemberActionButtons";
 import { MemberStatsGroup } from "@/components/member/MemberStatsGroup";
 import { UpcomingClassCard } from "@/components/member/UpcomingClassCard";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
-import {
-  Session
-} from "@/constants/mocks";
 import { useAuth } from "@/context/AuthContext";
+import { useContracts } from "@/context/ContractContext";
 import { useSessions } from "@/context/SessionContext";
 import { useUsers } from "@/context/UserContext";
-import { User } from "@/types";
-import React, { useMemo } from "react";
+import { Contract, Session, User } from "@/types";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   SafeAreaView,
   StyleSheet,
-  View
+  View,
 } from "react-native";
 
 // --- 데이터 처리 로직 ---
@@ -60,7 +60,7 @@ const useMemberDashboardData = (
     const now = new Date();
     const upcomingSessions = memberSessions
       .filter((s: Session) => {
-        if (s.status !== "pending" && s.status !== "confirmed") return false;
+        if (s.status !== "confirmed") return false; // 🚨 'pending' 체크 로직 삭제
         const sessionDateTime = new Date(`${s.sessionDate}T${s.sessionTime}`);
         return sessionDateTime > now;
       })
@@ -110,7 +110,26 @@ const useMemberDashboardData = (
 export default function MemberDashboardScreen() {
   const { user } = useAuth();
   const { sessions } = useSessions();
-  const { users } = useUsers(); // 🚨 수정: Hook을 컴포넌트 최상단으로 이동
+  const { users } = useUsers();
+  const { contracts, acceptInvitation, rejectInvitation } = useContracts();
+  const [pendingInvitation, setPendingInvitation] = useState<(Contract & { trainerName: string }) | null>(null);
+
+  useEffect(() => {
+    // 디버깅 코드 제거됨
+    if (user && contracts.length > 0 && users.length > 0) {
+      const invitation = contracts.find(
+        (c) => c.memberId === user.id && c.status === "invited"
+      );
+
+      if (invitation) {
+        const trainer = users.find((u) => u.id === invitation.trainerId);
+        setPendingInvitation({
+          ...invitation,
+          trainerName: trainer?.name || "트레이너",
+        });
+      }
+    }
+  }, [user, contracts, users]);
 
   const { member, stats, upcomingClass, bookingHistory } = useMemberDashboardData(
     user?.id || "",
@@ -181,6 +200,18 @@ export default function MemberDashboardScreen() {
         contentContainerStyle={styles.contentContainer}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />
+      <InvitationModal
+        invitation={pendingInvitation}
+        onAccept={(contractId) => {
+          acceptInvitation(contractId);
+          setPendingInvitation(null);
+        }}
+        onReject={(contractId) => {
+          rejectInvitation(contractId);
+          setPendingInvitation(null);
+          Alert.alert("거절 완료", "초대장을 거절했습니다.");
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -188,7 +219,7 @@ export default function MemberDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb", // gray-50
+    backgroundColor: Colors.pacet.lightBg,
   },
   contentContainer: {
     padding: 16,
@@ -201,13 +232,13 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    color: "#6b7280", // gray-500
+    color: Colors.pacet.lightText,
     marginTop: 4,
   },
   listTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#1f2937", // gray-800
+    color: Colors.pacet.darkText,
     marginBottom: 12,
   },
   inactiveContainer: {

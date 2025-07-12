@@ -1,11 +1,11 @@
 import { ThemedText } from "@/components/ThemedText";
-import { Session } from "@/constants/mocks";
 import { useAuth } from "@/context/AuthContext";
 import { useSessions } from "@/context/SessionContext";
 import {
   SCANNER_FRAME_SIZE,
   qrScannerStyles,
 } from "@/styles/qrScannerStyles";
+import { Session } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,7 +43,7 @@ export default function QRScannerScreen() {
   }, [scanLineY]);
 
   const { user } = useAuth();
-  const { sessions, updateSessionStatus } = useSessions();
+  const { sessions, updateSession } = useSessions();
 
   useEffect(() => {
     let backTimer: ReturnType<typeof setTimeout>;
@@ -62,17 +62,94 @@ export default function QRScannerScreen() {
     };
   }, [isScanSuccess, overlayOpacity, overlayScale, router]);
 
+  const processCheckIn = (session: Session) => {
+    const currentUserRole = user?.role;
+    const now = new Date();
+    // 세션 시간을 정확히 파악하기 위해 날짜와 시간을 합쳐 Date 객체 생성
+    const sessionTime = new Date(`${session.sessionDate}T${session.sessionTime}`);
+    const isLate = now > sessionTime;
+
+    let newStatus: Session['status'] | null = null;
+    let checkInData: Partial<Session> = {};
+  
+    if (currentUserRole === 'member') {
+      checkInData.memberCheckInTime = now.toISOString();
+      if (session.status === 'confirmed') {
+        newStatus = isLate ? 'late' : 'member-attended';
+        if (isLate) {
+          Alert.alert("지각 처리", "예정된 수업 시간이 지나 지각으로 처리되었습니다.");
+        }
+      } else if (session.status === 'trainer-attended') {
+        newStatus = 'completed';
+      }
+    } else if (currentUserRole === 'trainer') {
+      checkInData.trainerCheckInTime = now.toISOString();
+      if (session.status === 'confirmed') {
+        newStatus = 'trainer-attended';
+      } else if (session.status === 'member-attended' || session.status === 'late') {
+        newStatus = 'completed';
+      }
+    }
+  
+    if (newStatus) {
+      checkInData.status = newStatus;
+      // 상태와 체크인 시간을 한번에 업데이트
+      updateSession(session.sessionId, checkInData);
+      setIsScanSuccess(true);
+    } else {
+      Alert.alert("알림", "이미 출석 처리되었거나, 처리할 수 없는 상태의 수업입니다.");
+      setScanned(false);
+    }
+  };
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     setScanned(true);
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
     const currentUserRole = user?.role;
   
     if (!user || (currentUserRole !== 'member' && currentUserRole !== 'trainer')) {
-      Alert.alert("출석체크 실패", "출석체크는 회원 또는 트레이너 계정으로만 가능합니다.");
+      Alert.alert("출석체크 실패", "로그인 정보가 올바르지 않습니다.");
       setScanned(false);
       return;
     }
+  
+    // --- 테스트 출석 버튼을 위한 특별 로직 ---
+    if (data === 'test-qr-from-simulator') {
+      // 테스트 가능한 모든 세션 (확정, 상대방 출석 상태)
+      const checkableSessions = sessions.filter(s => {
+        let isUserSession = false;
+        if (currentUserRole === 'member') {
+          isUserSession = s.memberId === user.id && (s.status === 'confirmed' || s.status === 'trainer-attended');
+        } else { // trainer
+          isUserSession = s.trainerId === user.id && (s.status === 'confirmed' || s.status === 'member-attended');
+        }
+        return isUserSession;
+      });
+
+      if (checkableSessions.length === 0) {
+        Alert.alert("테스트 실패", "테스트할 수 있는 '확정' 또는 '상대방 출석' 상태의 수업이 없습니다.");
+        setScanned(false);
+        return;
+      }
+
+      // 현재 시간과 가장 가까운 세션을 찾는다 (과거/미래 무관)
+      checkableSessions.sort((a, b) => {
+        const aTime = new Date(`${a.sessionDate}T${a.sessionTime}`).getTime();
+        const bTime = new Date(`${b.sessionDate}T${b.sessionTime}`).getTime();
+        return Math.abs(now.getTime() - aTime) - Math.abs(now.getTime() - bTime);
+      });
+      
+      const targetSession = checkableSessions[0];
+      
+      processCheckIn(targetSession);
+      return;
+    }
+    
+    // --- 실제 QR 스캔 로직 ---
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
   
     const targetSession = sessions.find(s => {
       const sessionTime = new Date(`${s.sessionDate}T${s.sessionTime}`);
@@ -89,29 +166,12 @@ export default function QRScannerScreen() {
     });
   
     if (!targetSession) {
-      Alert.alert("출석할 수업 없음", "지금 출석체크를 할 수 있는 예약된 수업이 없습니다.");
+      Alert.alert("출석할 수업 없음", "지금 출석체크를 할 수 있는 예약된 수업이 없습니다.\n(오늘, 수업 시간 1시간 전후)");
       setScanned(false);
       return;
     }
   
-    let newStatus: Session['status'] | null = null;
-  
-    if (currentUserRole === 'member') {
-      if (targetSession.status === 'confirmed') newStatus = 'member-attended';
-      else if (targetSession.status === 'trainer-attended') newStatus = 'completed';
-    } else if (currentUserRole === 'trainer') {
-      if (targetSession.status === 'confirmed') newStatus = 'trainer-attended';
-      else if (targetSession.status === 'member-attended') newStatus = 'completed';
-    }
-  
-    if (newStatus) {
-      updateSessionStatus(targetSession.sessionId, newStatus);
-      setIsScanSuccess(true);
-    } else {
-      // 이미 출석한 경우 등 newStatus가 할당되지 않은 경우
-      Alert.alert("알림", "이미 출석 처리되었습니다.");
-      setScanned(false);
-    }
+    processCheckIn(targetSession);
   };
 
   const scanLineAnimatedStyle = useAnimatedStyle(() => ({

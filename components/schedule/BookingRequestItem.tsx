@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
-import { allUsers, Session } from "@/constants/mocks";
 import { useSessions } from "@/context/SessionContext";
+import { Session } from "@/types";
 import React from "react";
 import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -13,27 +13,18 @@ interface BookingRequestItemProps {
 }
 
 export function BookingRequestItem({ request }: BookingRequestItemProps) {
-  const { updateSession } = useSessions();
-  const { memberId, sessionDate, sessionTime, sessionId } = request;
-  const member = allUsers.find((u) => u.id === memberId);
+  const { acceptRequest, rejectRequest } = useSessions();
+  const { memberName, sessionId } = request;
 
   const handleConfirm = () => {
-    updateSession(sessionId, { status: "confirmed" });
-    Alert.alert("승인 완료", `${member?.name}님의 예약을 확정했습니다.`);
+    acceptRequest(sessionId);
+    Alert.alert("승인 완료", `${memberName}님의 예약을 확정했습니다.`);
   };
 
   const handleCancel = () => {
-    // 트레이너가 요청을 거절하는 경우
-    updateSession(sessionId, {
-      status: "cancelled",
-      cancellationReason: "trainer",
-      cancellationCode: "TRAINER_PERSONAL",
-      memo: "트레이너의 일정상 예약을 확정할 수 없어 거절되었습니다.",
-    });
-    Alert.alert("거절 완료", `${member?.name}님의 예약을 거절했습니다.`);
+    rejectRequest(sessionId);
+    Alert.alert("거절 완료", `${memberName}님의 예약을 거절했습니다.`);
   };
-
-  if (!member) return null;
 
   return (
     <View style={styles.container}>

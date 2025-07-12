@@ -1,5 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
-import { Session, SessionStatus } from "@/constants/mocks";
+import { Session, SessionStatus } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, View } from "react-native";
@@ -19,11 +19,14 @@ const statusConfig: Record<
   'trainer-attended': { label: "트레이너 확인", color: "#0891b2", bgColor: "#cffafe" },
   late: { label: "지각", color: "#a16207", bgColor: "#fef08a" },
   "no-show": { label: "회원님 불참", color: "#dc2626", bgColor: "#fee2e2" },
-  pending: { label: "승인 대기중", color: "#f97316", bgColor: "#ffedd5" },
+  requested: { label: "승인 대기중", color: "#f97316", bgColor: "#ffedd5" },
   cancelled: { label: "취소됨", color: "#6b7280", bgColor: "#f3f4f6" }, // 타입 에러 해결을 위한 기본값
 };
 
-const cancelledStatusConfig = {
+const cancelledStatusConfig: Record<
+  "default" | "member" | "trainer",
+  { label: string; color: string; bgColor: string }
+> = {
   default: { label: "예약 취소됨", color: "#6b7280", bgColor: "#f3f4f6" },
   trainer: { label: "트레이너 취소", color: "#0891b2", bgColor: "#cffafe" },
   member: { label: "요청하신 취소", color: "#6b7280", bgColor: "#f3f4f6" },
@@ -35,7 +38,11 @@ export function BookingListItem({ session, trainerName }: BookingListItemProps) 
   let config =
     status === "cancelled"
       ? cancelledStatusConfig[cancellationReason || "default"]
-      : statusConfig[status] || { label: "알 수 없음", color: "#6b7280", bgColor: "#f3f4f6" };
+      : statusConfig[status] || {
+          label: "알 수 없음",
+          color: "#6b7280",
+          bgColor: "#f3f4f6",
+        };
 
   return (
     <View style={styles.container}>

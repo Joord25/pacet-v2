@@ -1,13 +1,13 @@
 import { ThemedText } from "@/components/ThemedText";
 import { CancellationReasonModal } from "@/components/common/CancellationReasonModal";
-import { CancellationCode, Session, SessionStatus } from "@/constants/mocks";
+import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
 import { useSessions } from "@/context/SessionContext";
-import { Ionicons } from "@expo/vector-icons";
+import { CancellationCode, Session, SessionStatus } from "@/types";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
-import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 
-// 'TodaySession'은 memberName이 추가된 확장된 세션 타입입니다.
 type TodaySession = Session & { memberName: string };
 
 interface ScheduleItemProps {
@@ -16,41 +16,68 @@ interface ScheduleItemProps {
 
 const statusInfo: Record<
   SessionStatus,
-  {
-    icon: React.ComponentProps<typeof Ionicons>["name"];
-    color: string;
-    label: string;
-  }
+  { label: string; color: string; backgroundColor: string }
 > = {
-  pending: { icon: "hourglass", color: "#f97316", label: "승인 대기중" },
-  confirmed: { icon: "checkmark-circle", color: "#2563eb", label: "예약 확정" },
-  completed: { icon: "checkmark-done-circle", color: "#16a34a", label: "수업 완료" },
-  'member-attended': { icon: "person-add", color: "#16a34a", label: "회원 출석" },
-  'trainer-attended': { icon: "clipboard", color: "#16a34a", label: "트레이너 출석" },
-  late: { icon: "time", color: "#a16207", label: "지각" },
-  "no-show": { icon: "alert-circle", color: "#dc2626", label: "회원 불참" },
-  cancelled: { icon: "close-circle", color: "#525252", label: "취소됨" },
+  requested: {
+    label: "승인 대기",
+    color: Colors.pacet.warning,
+    backgroundColor: Colors.pacet.warningMuted,
+  },
+  confirmed: {
+    label: "예약 확정",
+    color: Colors.pacet.info,
+    backgroundColor: Colors.pacet.infoMuted,
+  },
+  completed: {
+    label: "수업 완료",
+    color: Colors.pacet.success,
+    backgroundColor: Colors.pacet.successMuted,
+  },
+  "member-attended": {
+    label: "회원 출석",
+    color: Colors.pacet.success,
+    backgroundColor: Colors.pacet.successMuted,
+  },
+  "trainer-attended": {
+    label: "트레이너 출석",
+    color: Colors.pacet.success,
+    backgroundColor: Colors.pacet.successMuted,
+  },
+  late: {
+    label: "지각",
+    color: Colors.pacet.warning,
+    backgroundColor: Colors.pacet.warningMuted,
+  },
+  "no-show": {
+    label: "불참",
+    color: Colors.light.error,
+    backgroundColor: Colors.light.errorMuted,
+  },
+  cancelled: {
+    label: "취소됨",
+    color: Colors.light.textMuted,
+    backgroundColor: Colors.light.gray,
+  },
 };
 
-const MoreActionsMenu = ({ session }: ScheduleItemProps) => {
-  const { updateSession } = useSessions();
-  const [isModalVisible, setModalVisible] = useState(false);
+const StatusTag = ({ status }: { status: SessionStatus }) => {
+  const info = statusInfo[status] || {
+    label: "알 수 없음",
+    color: Colors.light.textMuted,
+    backgroundColor: Colors.light.gray,
+  };
+  return (
+    <View style={[styles.tag, { backgroundColor: info.backgroundColor }]}>
+      <ThemedText style={[styles.tagText, { color: info.color }]}>
+        {info.label}
+      </ThemedText>
+    </View>
+  );
+};
 
-  const handleCancelSession = () => {
-    setModalVisible(true);
-  };
-  
-  const handleSubmitCancellation = (reason: CancellationCode, memo?: string) => {
-    const cancellationReason = reason === "MEMBER_REQUEST" || reason === "MEMBER_NOSHOW" ? "member" : "trainer";
-    
-    updateSession(session.sessionId, {
-        status: "cancelled",
-        cancellationReason,
-        cancellationCode: reason,
-        memo,
-    });
-    setModalVisible(false);
-  };
+const ActionButtons = ({ session }: ScheduleItemProps) => {
+  const { user } = useAuth();
+  const { updateSession, cancelSession } = useSessions();
 
   const handleNoShow = () => {
     Alert.alert(
@@ -72,115 +99,283 @@ const MoreActionsMenu = ({ session }: ScheduleItemProps) => {
     );
   };
   
-  const handleConfirmSession = () => {
-    updateSession(session.sessionId, { status: 'confirmed' });
+  const handleMemberCancel = () => {
+    Alert.alert(
+      "예약 취소",
+      "정말로 예약을 취소하시겠습니까? 취소된 예약은 복구할 수 없습니다.",
+      [
+        {
+          text: "예약 취소",
+          style: "destructive",
+          onPress: () => cancelSession(session.sessionId),
+        },
+        { text: "닫기", style: "cancel" },
+      ]
+    );
   };
 
-  const isPastSession = new Date() > new Date(`${session.sessionDate}T${session.sessionTime}`);
-  const canConfirm = session.status === 'pending';
-  const canCancel = session.status === 'confirmed' && !isPastSession;
-  const canNoShow = session.status === 'confirmed' && isPastSession;
+  const isPastSession =
+    new Date() > new Date(`${session.sessionDate}T${session.sessionTime}`);
   
-  const hasActions = canConfirm || canCancel || canNoShow;
+  // 트레이너 역할일 때 버튼 렌더링
+  if (user?.role === 'trainer') {
+    // 'requested'와 'confirmed' 상태는 아이콘으로 처리되므로 여기서 제외합니다.
+    if (session.status === "confirmed" && isPastSession) {
+      return (
+        <TouchableOpacity
+          style={[styles.button, styles.noShowButton]}
+          onPress={handleNoShow}
+        >
+          <ThemedText style={[styles.buttonText, styles.noShowButtonText]}>
+            No-Show 처리
+          </ThemedText>
+        </TouchableOpacity>
+      );
+    }
+  }
+  
+  // 회원 역할일 때 버튼 렌더링
+  if (user?.role === 'member') {
+    // 'requested'는 제외하고 'confirmed' 상태일 때만 버튼을 보여줍니다.
+    if (session.status === "confirmed" && !isPastSession) {
+       return (
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[styles.button, styles.cancelButton]}
+            onPress={handleMemberCancel}
+          >
+            <ThemedText style={[styles.buttonText, styles.cancelButtonText]}>
+              {'예약 취소'}
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  }
 
-  return (
-    <>
-    <Menu>
-      <MenuTrigger>
-        <Ionicons name="ellipsis-vertical" size={20} color="#6b7280" />
-      </MenuTrigger>
-      <MenuOptions customStyles={{ optionsContainer: { borderRadius: 12, padding: 4 } }}>
-        {canConfirm && (
-            <MenuOption onSelect={handleConfirmSession}>
-                <ThemedText style={styles.menuOptionText}>예약 수락</ThemedText>
-            </MenuOption>
-        )}
-        {canCancel && (
-          <MenuOption onSelect={handleCancelSession}>
-            <ThemedText style={styles.menuOptionText}>예약 취소</ThemedText>
-          </MenuOption>
-        )}
-        {canNoShow && (
-          <MenuOption onSelect={handleNoShow}>
-            <ThemedText style={[styles.menuOptionText, styles.destructiveText]}>No-Show 처리</ThemedText>
-          </MenuOption>
-        )}
-        {!hasActions && (
-            <MenuOption disabled>
-                <ThemedText style={{padding: 8, color: '#9ca3af'}}>변경 사항 없음</ThemedText>
-            </MenuOption>
-        )}
-      </MenuOptions>
-    </Menu>
-    <CancellationReasonModal 
-        isVisible={isModalVisible}
-        onClose={() => setModalVisible(false)}
-        onSubmit={handleSubmitCancellation}
-    />
-    </>
-  );
+  return null;
 };
 
 export function ScheduleItem({ session }: ScheduleItemProps) {
   const { memberName, sessionTime, status } = session;
-  const info = statusInfo[status] || {
-    icon: "help-circle",
-    color: "#6b7280",
-    label: "알 수 없음",
+  const { user } = useAuth();
+  const { rejectRequest, acceptRequest, updateSession } = useSessions();
+  const [isModalVisible, setModalVisible] = useState(false);
+
+  const isPastSession =
+    new Date() > new Date(`${session.sessionDate}T${session.sessionTime}`);
+
+  const handleSubmitCancellation = (reason: CancellationCode, memo?: string) => {
+    const cancellationReason =
+      reason === "MEMBER_REQUEST" || reason === "MEMBER_NOSHOW"
+        ? "member"
+        : "trainer";
+
+    updateSession(session.sessionId, {
+      status: "cancelled",
+      cancellationReason,
+      cancellationCode: reason,
+      memo,
+    });
+    setModalVisible(false);
   };
+
+  const handleCancelRequest = () => {
+    Alert.alert("요청 취소", "정말로 예약 요청을 취소하시겠습니까?", [
+      {
+        text: "요청 취소",
+        style: "destructive",
+        onPress: () => rejectRequest(session.sessionId),
+      },
+      { text: "닫기", style: "cancel" },
+    ]);
+  };
+
+  const showMemberCancelIcon =
+    user?.role === "member" && status === "requested" && !isPastSession;
+
+  const showTrainerActionIcons =
+    user?.role === "trainer" && status === "requested" && !isPastSession;
+  
+  const showTrainerCancelIcon =
+    user?.role === "trainer" && status === "confirmed" && !isPastSession;
+
+  // 트레이너인 경우 '님'을 붙이고, 회원이면 그대로 표시
+  const displayName = user?.role === 'trainer' ? `${memberName} 님` : memberName;
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconContainer, { backgroundColor: info.color }]}>
-        <Ionicons name={info.icon} size={24} color="white" />
+      <View style={styles.topRow}>
+        <View style={styles.details}>
+          <ThemedText style={styles.sessionTime} numberOfLines={1}>
+            {sessionTime}
+          </ThemedText>
+          <ThemedText style={styles.memberName} numberOfLines={1}>
+            {displayName}
+          </ThemedText>
+        </View>
+        <View style={styles.statusContainer}>
+          <StatusTag status={status} />
+          {showMemberCancelIcon && (
+            <TouchableOpacity
+              onPress={handleCancelRequest}
+              style={styles.cancelIcon}
+            >
+              <Ionicons
+                name="close-circle"
+                size={22}
+                color={Colors.light.textMuted}
+              />
+            </TouchableOpacity>
+          )}
+          {showTrainerCancelIcon && (
+             <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              style={styles.cancelIcon}
+            >
+              <Ionicons
+                name="close-circle"
+                size={22}
+                color={Colors.light.textMuted}
+              />
+            </TouchableOpacity>
+          )}
+          {showTrainerActionIcons && (
+            <View style={styles.trainerActions}>
+              <TouchableOpacity
+                onPress={() => rejectRequest(session.sessionId)}
+                style={styles.actionIcon}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={24}
+                  color={Colors.light.error}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => acceptRequest(session.sessionId)}
+                style={styles.actionIcon}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color={Colors.light.success}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
-      <View style={styles.details}>
-        <ThemedText style={styles.memberName}>{memberName}</ThemedText>
-        <ThemedText style={styles.sessionTime}>
-          {sessionTime} - {info.label}
-        </ThemedText>
+      <View style={styles.actionsContainer}>
+        <ActionButtons session={session} />
       </View>
-      <MoreActionsMenu session={session} />
+       <CancellationReasonModal
+        isVisible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleSubmitCancellation}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "white",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+    gap: 12, // container 내부 아이템들의 간격
   },
-  iconContainer: {
-    padding: 10,
-    borderRadius: 999,
-    marginRight: 16,
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  trainerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  actionIcon: {
+    marginLeft: 4,
+  },
+  cancelIcon: {
+    marginLeft: 6,
   },
   details: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  memberName: {
-    fontWeight: "bold",
+  sessionInfoText: {
     fontSize: 16,
-    color: "#1f2937",
+    color: Colors.pacet.darkText,
   },
   sessionTime: {
-    color: "#6b7280",
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.pacet.darkText,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "bold", // 600 -> bold로 변경하여 더 진하게
+    color: Colors.pacet.darkText,
+    marginLeft: 16, // 8 -> 16으로 늘려 간격 확장
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  actionsContainer: {
+    // 버튼 그룹이 컨테이너의 전체 너비를 차지하도록 설정
+  },
+  buttonGroup: {
+    flexDirection: "row",
+    justifyContent: "flex-end", // 버튼을 오른쪽으로 정렬
+    gap: 8,
+  },
+  button: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    height: 36, // 버튼 높이 고정
+  },
+  confirmButton: {
+    backgroundColor: Colors.pacet.primary,
+  },
+  cancelButton: {
+    backgroundColor: Colors.pacet.lightGray,
+  },
+  noShowButton: {
+    backgroundColor: Colors.light.errorMuted,
+  },
+  buttonText: {
     fontSize: 14,
-    marginTop: 2,
+    fontWeight: "bold",
   },
-  menuOptionText: {
-    padding: 8,
-    fontSize: 15,
+  confirmButtonText: {
+    color: "white",
   },
-  destructiveText: {
-    color: '#dc2626',
-  }
+  cancelButtonText: {
+    color: Colors.pacet.darkText,
+  },
+  noShowButtonText: {
+    color: Colors.light.error,
+  },
 }); 

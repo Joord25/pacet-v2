@@ -9,8 +9,10 @@ const USER_STORAGE_KEY = '@pacet-time-manager-users';
 interface UserContextType {
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  addUser: (newUser: Omit<User, 'id' | 'role' | 'status'>) => User;
   updateUserStatus: (userId: string, status: 'active' | 'inactive') => void;
   addUserSessions: (userId: string, sessionsToAdd: number) => void;
+  assignTrainerToMember: (memberId: string, trainerId: string) => void; // 함수 추가
   isDataLoaded: boolean;
 }
 
@@ -41,13 +43,16 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const storedUsers = await AsyncStorage.getItem(USER_STORAGE_KEY);
-        if (storedUsers) {
-          setUsers(JSON.parse(storedUsers));
+        const storedUsersJSON = await AsyncStorage.getItem(USER_STORAGE_KEY);
+        let usersFromStorage: User[] = [];
+        if (storedUsersJSON) {
+          usersFromStorage = JSON.parse(storedUsersJSON);
         } else {
-          // 저장된 데이터가 없으면 목업 데이터로 초기화
-          setUsers(allUsers);
+          usersFromStorage = allUsers;
         }
+
+        setUsers(usersFromStorage);
+        
       } catch (e) {
         console.error("Failed to load users from storage", e);
         // 에러 발생 시 목업 데이터로 폴백
@@ -67,6 +72,17 @@ export const UserProvider = ({ children }: UserProviderProps) => {
       AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
     }
   }, [users, isDataLoaded]);
+
+  const addUser = (newUser: Omit<User, 'id' | 'role' | 'status'>): User => {
+    const userWithDefaults: User = {
+      ...newUser,
+      id: `user_${Date.now()}`,
+      role: 'member', // 회원가입은 기본적으로 'member'
+      status: 'active',
+    };
+    setUsers(currentUsers => [...currentUsers, userWithDefaults]);
+    return userWithDefaults;
+  };
 
   const updateUserStatus = useCallback((userId: string, status: 'active' | 'inactive') => {
     setUsers(currentUsers =>
@@ -88,12 +104,22 @@ export const UserProvider = ({ children }: UserProviderProps) => {
     );
   }, []);
 
+  const assignTrainerToMember = useCallback((memberId: string, trainerId: string) => {
+    setUsers(currentUsers =>
+      currentUsers.map(user =>
+        user.id === memberId ? { ...user, trainerId: trainerId } : user
+      )
+    );
+  }, []);
+
 
   const value = {
     users,
     setUsers,
+    addUser,
     updateUserStatus,
     addUserSessions,
+    assignTrainerToMember, // value에 추가
     isDataLoaded,
   };
 

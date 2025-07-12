@@ -6,6 +6,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
+// onInvitePress prop 제거
 export function ActionButtonGroup() {
   const router = useRouter();
 
@@ -15,7 +16,7 @@ export function ActionButtonGroup() {
       <TouchableOpacity
         style={[styles.qrButton, commonStyles.cardShadow]}
         activeOpacity={0.8}
-        onPress={() => router.push("/qr-scanner")}
+        onPress={() => router.push("/(common)/qr-scanner")}
       >
         <Ionicons name="qr-code" size={24} color="white" style={styles.icon} />
         <ThemedText style={styles.qrButtonText}>QR 출석체크</ThemedText>
@@ -26,7 +27,7 @@ export function ActionButtonGroup() {
         <TouchableOpacity
           style={[styles.smallButton, commonStyles.cardShadow]}
           activeOpacity={0.7}
-          onPress={() => router.push("/schedule")}
+          onPress={() => router.push("/(common)/schedule")}
         >
           <Ionicons
             name="calendar-outline"
@@ -49,6 +50,7 @@ export function ActionButtonGroup() {
           />
           <ThemedText style={styles.smallButtonText}>회원 리포트</ThemedText>
         </TouchableOpacity>
+        {/* --- '회원 초대' 버튼 제거 --- */}
       </View>
     </View>
   );
@@ -77,8 +79,8 @@ const styles = StyleSheet.create({
   },
   bottomButtonContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
+    justifyContent: "space-between", // 🚨 space-between 유지 (gap으로 간격 조절)
+    gap: 12, // 🚨 gap으로 버튼 사이 간격 조절
   },
   smallButton: {
     flex: 1,
