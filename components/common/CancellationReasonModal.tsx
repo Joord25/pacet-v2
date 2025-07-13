@@ -69,14 +69,14 @@ export function CancellationReasonModal({ isVisible, onClose, onSubmit }: Cancel
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-              <ThemedText style={styles.buttonText} lightColor={Colors.pacet.darkText}>닫기</ThemedText>
+              <ThemedText style={[styles.buttonText, styles.cancelButtonText]}>닫기</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.button, styles.submitButton, !selectedReason && styles.disabledButton]} 
               onPress={handleSubmit}
               disabled={!selectedReason}
             >
-              <ThemedText style={[styles.buttonText, styles.submitButtonText]}>확인</ThemedText>
+              <ThemedText style={[styles.buttonText, styles.submitButtonText, !selectedReason && styles.disabledButtonText]}>확인</ThemedText>
             </TouchableOpacity>
           </View>
         </ThemedView>
@@ -172,7 +172,13 @@ const styles = StyleSheet.create({
         textAlign: "center",
         fontWeight: 'bold',
     },
+    cancelButtonText: {
+        color: Colors.pacet.darkText,
+    },
     submitButtonText: {
         color: 'white',
+    },
+    disabledButtonText: {
+        color: Colors.pacet.lightText,
     }
 }); 

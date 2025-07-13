@@ -9,14 +9,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useContracts } from "@/context/ContractContext";
 import { useSessions } from "@/context/SessionContext";
 import { useUsers } from "@/context/UserContext";
-import { Contract, Session, User } from "@/types";
+import { Contract, Session, SessionStatus, User } from "@/types";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  SafeAreaView,
-  StyleSheet,
-  View,
+    Alert,
+    FlatList,
+    SafeAreaView,
+    StyleSheet,
+    View,
 } from "react-native";
 
 // --- 데이터 처리 로직 ---
@@ -58,11 +58,21 @@ const useMemberDashboardData = (
 
   const upcomingClass = useMemo(() => {
     const now = new Date();
-    const upcomingSessions = memberSessions
+    // 진행 중이거나 예정된 수업을 찾습니다.
+    const ongoingOrUpcomingSessions = memberSessions
       .filter((s: Session) => {
-        if (s.status !== "confirmed") return false; // 🚨 'pending' 체크 로직 삭제
-        const sessionDateTime = new Date(`${s.sessionDate}T${s.sessionTime}`);
-        return sessionDateTime > now;
+        // 이미 종료, 취소, 불참 처리된 수업은 제외합니다.
+        const finishedStatuses: SessionStatus[] = ['completed', 'cancelled', 'no-show'];
+        if (finishedStatuses.includes(s.status)) {
+            return false;
+        }
+
+        // 세션 종료 시간을 계산합니다 (시작 시간 + 50분).
+        const sessionEndTime = new Date(`${s.sessionDate}T${s.sessionTime}`);
+        sessionEndTime.setMinutes(sessionEndTime.getMinutes() + 50);
+
+        // 세션 종료 시간이 현재 시간보다 이후인 경우만 포함합니다.
+        return sessionEndTime > now;
       })
       .sort(
         (a: Session, b: Session) => {
@@ -72,7 +82,7 @@ const useMemberDashboardData = (
         }
       );
 
-    const nextSession = upcomingSessions[0];
+    const nextSession = ongoingOrUpcomingSessions[0];
     if (!nextSession) return null;
 
     // 🚨 변경: allUsers 대신 context의 users 배열에서 검색

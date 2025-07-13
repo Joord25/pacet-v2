@@ -2,9 +2,12 @@ import { AuthButton } from "@/components/auth/AuthButton";
 import { AuthTextInput } from "@/components/auth/AuthTextInput";
 import { PacetLogo } from "@/components/auth/PacetLogo";
 import { ThemedText } from "@/components/ThemedText";
+import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Link } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Alert,
     KeyboardAvoidingView,
@@ -15,17 +18,36 @@ import {
     View
 } from "react-native";
 
+const REMEMBER_ME_KEY = "@pacet_remember_me_email";
+
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    const loadRememberedEmail = async () => {
+      const rememberedEmail = await AsyncStorage.getItem(REMEMBER_ME_KEY);
+      if (rememberedEmail) {
+        setEmail(rememberedEmail);
+        setRememberMe(true);
+      }
+    };
+    loadRememberedEmail();
+  }, []);
 
   const handleLogin = async () => {
     const success = await signIn(email, password);
     if (!success) {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
+    } else {
+      if (rememberMe) {
+        await AsyncStorage.setItem(REMEMBER_ME_KEY, email);
+      } else {
+        await AsyncStorage.removeItem(REMEMBER_ME_KEY);
+      }
     }
-    // 로그인 성공 시 리디렉션은 AuthProvider가 자동으로 처리합니다.
   };
 
   return (
@@ -58,6 +80,19 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
           />
+
+          <TouchableOpacity
+            style={styles.rememberMeContainer}
+            onPress={() => setRememberMe(!rememberMe)}
+          >
+            <Ionicons
+              name={rememberMe ? "checkbox" : "square-outline"}
+              size={24}
+              color={rememberMe ? Colors.pacet.primary : Colors.pacet.lightText}
+            />
+            <ThemedText style={styles.rememberMeText}>아이디 저장</ThemedText>
+          </TouchableOpacity>
+
           <AuthButton title="로그인" onPress={handleLogin} />
         </View>
 
@@ -112,6 +147,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#1C1C1E",
     marginBottom: 24,
+  },
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    alignSelf: 'flex-start',
+  },
+  rememberMeText: {
+    marginLeft: 8,
+    color: Colors.pacet.darkText,
   },
   link: {
     marginTop: 24,

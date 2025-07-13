@@ -1,6 +1,7 @@
 import { mockSessions } from '@/constants/mocks/sessions';
 import { Session } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import React, { createContext, useCallback, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 
@@ -97,9 +98,33 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const scheduleCheckinReminder = async (sessionId: string) => {
+    const session = sessions.find(s => s.sessionId === sessionId);
+    if (!session) return;
+
+    const triggerDate = new Date(`${session.sessionDate}T${session.sessionTime}`);
+    triggerDate.setMinutes(triggerDate.getMinutes() - 10);
+
+    // If the trigger time is in the past, don't schedule.
+    if (triggerDate < new Date()) {
+      return;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "수업 시작 10분 전",
+        body: "출석 체크를 잊지 마세요!",
+        data: { sessionId },
+      },
+      // @ts-ignore - Linter가 trigger 타입을 정확히 인식하지 못하는 문제가 있어 임시 조치
+      trigger: triggerDate,
+    });
+  };
+
   const acceptRequest = useCallback(async (sessionId: string) => {
     await updateSessionStatus(sessionId, 'confirmed');
-  }, [updateSessionStatus]);
+    await scheduleCheckinReminder(sessionId);
+  }, [updateSessionStatus, sessions]);
 
   const rejectRequest = useCallback(async (sessionId: string) => {
     setSessions(currentSessions =>
