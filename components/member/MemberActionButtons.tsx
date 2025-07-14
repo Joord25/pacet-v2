@@ -15,32 +15,56 @@ export function MemberActionButtons({ isInactive }: MemberActionButtonsProps) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.button, styles.scheduleButton, isInactive && styles.disabledButton]}
+      <ActionButton
+        icon="calendar"
+        text="스케줄 관리"
         onPress={() => router.push("/(common)/schedule")}
-        disabled={isInactive}
-      >
-        <Ionicons name="calendar" size={20} color={isInactive ? '#9ca3af' : Colors.light.text} />
-        <ThemedText style={[styles.buttonText, isInactive && styles.disabledText]}>스케줄 관리</ThemedText>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.button, styles.qrButton, isInactive && styles.disabledButton]}
+        isInactive={isInactive}
+        style={{ backgroundColor: 'white', borderColor: '#e5e7eb', borderWidth: 1 }}
+        textStyle={{ color: Colors.pacet.darkText }}
+        iconColor={Colors.pacet.darkText}
+      />
+      <ActionButton
+        icon="bar-chart"
+        text="이번달 출결"
+        onPress={() => router.push("/(member)/attendance")}
+        isInactive={isInactive}
+        style={{ backgroundColor: 'white', borderColor: '#e5e7eb', borderWidth: 1 }}
+        textStyle={{ color: Colors.pacet.darkText }}
+        iconColor={Colors.pacet.darkText}
+      />
+      <ActionButton
+        icon="qr-code"
+        text="QR 출석"
         onPress={() => router.push("/(common)/qr-scanner")}
-        disabled={isInactive}
-      >
-        <Ionicons name="qr-code" size={20} color={isInactive ? '#9ca3af' : 'white'} />
-        <ThemedText style={[styles.buttonText, { color: isInactive ? '#9ca3af' : "white" }]}>
-          QR 출석체크
-        </ThemedText>
-      </TouchableOpacity>
+        isInactive={isInactive}
+        style={{ backgroundColor: Colors.pacet.primary }}
+        textStyle={{ color: 'white' }}
+        iconColor='white'
+      />
     </View>
   );
 }
 
+// 재사용 가능한 버튼 컴포넌트
+const ActionButton = ({ icon, text, onPress, isInactive, style, textStyle, iconColor }: any) => (
+  <TouchableOpacity
+    style={[styles.button, isInactive && styles.disabledButton, style]}
+    onPress={onPress}
+    disabled={isInactive}
+  >
+    <Ionicons name={icon} size={20} color={isInactive ? '#9ca3af' : iconColor} />
+    <ThemedText style={[styles.buttonText, isInactive && styles.disabledText, textStyle]}>
+      {text}
+    </ThemedText>
+  </TouchableOpacity>
+);
+
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    gap: 16,
+    gap: 12, // 간격 조정
     marginVertical: 16,
   },
   button: {
@@ -52,16 +76,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     ...commonStyles.cardShadow,
   },
-  scheduleButton: {
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: "#e5e7eb", // gray-200
-  },
-  qrButton: {
-    backgroundColor: Colors.pacet.primary,
-  },
   buttonText: {
-    fontSize: 16,
+    fontSize: 15, // 폰트 크기 살짝 줄임
     fontWeight: "bold",
     marginLeft: 8,
   },
@@ -69,6 +85,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e5e7eb', // gray-200
     borderColor: '#d1d5db', // gray-300
     ...commonStyles.cardShadow,
+    borderWidth: 1,
   },
   disabledText: {
     color: '#9ca3af', // gray-400
