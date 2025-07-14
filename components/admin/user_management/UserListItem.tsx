@@ -1,62 +1,50 @@
-import { ThemedText } from '@/components/ThemedText';
-import { Colors } from '@/constants/Colors';
-import { TrainerDetails } from '@/hooks/useUserManagement';
+import { ThemedText } from "@/components/ThemedText";
+import { Colors } from "@/constants/Colors";
+import { TrainerDetails } from "@/hooks/useUserManagement";
 import React from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-interface Props {
-  trainer: TrainerDetails;
+interface UserListItemProps {
+    trainer: TrainerDetails;
+    onToggleStatus: (trainer: TrainerDetails) => void;
 }
 
-export const UserListItem: React.FC<Props> = ({ trainer }) => {
-  const isRateLow = trainer.fulfillmentRate < 90;
-  const rateColor = isRateLow ? Colors.pacet.warning : Colors.pacet.success;
-  const status = trainer.status || 'active'; // status가 없을 경우 기본값
-  const statusConfig = {
-    active: { text: '활성', color: Colors.pacet.success, bg: Colors.pacet.successMuted },
-    inactive: { text: '비활성', color: Colors.pacet.mediumText, bg: Colors.pacet.lightGray },
-  };
+export const UserListItem: React.FC<UserListItemProps> = ({ trainer, onToggleStatus }) => {
+    const status = trainer.status || 'active'; 
+    const statusConfig = {
+        active: { text: '활동중', color: Colors.pacet.success, bg: Colors.pacet.successMuted },
+        inactive: { text: '비활성', color: Colors.pacet.mediumText, bg: Colors.pacet.lightGray },
+    };
+    const toggleButtonText = status === 'active' ? '비활성화' : '활성화';
 
-  return (
-    <View style={styles.container}>
-      {/* 트레이너 정보 */}
-      <View style={styles.trainerInfoContainer}>
-        <Image 
-          source={{ uri: trainer.profileImageUrl || `https://placehold.co/80x80/0A3442/FFFFFF?text=${trainer.name.charAt(0)}` }} 
-          style={styles.profileImage} 
-        />
-        <View style={styles.trainerTextContainer}>
-          <ThemedText style={styles.name}>{trainer.name}</ThemedText>
-          <ThemedText style={styles.email}>{trainer.email}</ThemedText>
+    return (
+        <View style={styles.container}>
+            {/* 트레이너 정보 (아이콘 제거, 왼쪽 정렬) */}
+            <View style={[styles.cell, { flex: 2 }]}>
+                <ThemedText style={styles.name}>{trainer.name}</ThemedText>
+                <ThemedText style={styles.email}>{trainer.email}</ThemedText>
+            </View>
+
+            {/* 담당 회원 (왼쪽 정렬) */}
+            <ThemedText style={[styles.cell, { flex: 1 }]}>{trainer.assignedMembersCount}명</ThemedText>
+            
+            {/* 상태 (왼쪽 정렬) */}
+            <View style={[styles.cell, { flex: 1.2 }]}>
+                <View style={[styles.statusBadge, { backgroundColor: statusConfig[status].bg }]}>
+                    <ThemedText style={[styles.statusText, { color: statusConfig[status].color }]}>
+                        {statusConfig[status].text}
+                    </ThemedText>
+                </View>
+            </View>
+            
+            {/* 관리 (왼쪽 정렬) */}
+            <View style={[styles.cell, { flex: 1 }]}>
+                <TouchableOpacity onPress={() => onToggleStatus(trainer)} style={styles.actionButton}>
+                    <ThemedText style={styles.actionButtonText}>{toggleButtonText}</ThemedText>
+                </TouchableOpacity>
+            </View>
         </View>
-      </View>
-
-      {/* 담당 회원 */}
-      <ThemedText style={styles.membersCount}>{trainer.assignedMembersCount}명</ThemedText>
-      
-      {/* 약속 이행률 */}
-      <ThemedText style={[styles.fulfillmentRate, { color: rateColor }]}>
-        {trainer.fulfillmentRate}%
-      </ThemedText>
-
-      {/* 상태 */}
-      <View style={[styles.statusBadge, { backgroundColor: statusConfig[status].bg }]}>
-        <ThemedText style={[styles.statusText, { color: statusConfig[status].color }]}>
-          {statusConfig[status].text}
-        </ThemedText>
-      </View>
-      
-      {/* 관리 버튼 */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity>
-          <ThemedText style={styles.actionTextPrimary}>수정</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity>
-          <ThemedText style={styles.actionTextSecondary}>비활성화</ThemedText>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
 };
 
 const styles = StyleSheet.create({
@@ -69,21 +57,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
-    trainerInfoContainer: {
-        flex: 2.5,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    profileImage: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        marginRight: 12,
-    },
-    trainerTextContainer: {
-        // 이 컨테이너는 이제 이름과 이메일을 감싸기만 할 뿐,
-        // 특별한 스타일이 필요 없습니다.
+    cell: {
+        fontSize: 14,
     },
     name: {
         fontSize: 14,
@@ -94,31 +69,26 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#64748B',
     },
-    membersCount: { flex: 1, fontSize: 14 },
-    fulfillmentRate: { flex: 1, fontSize: 14, fontWeight: 'bold' }, // 👈 속성 이름 변경
     statusBadge: {
-        flex: 1,
         paddingVertical: 4,
-        paddingHorizontal: 8,
-        borderRadius: 99,
-        alignItems: 'center',
-        justifyContent: 'center',
+        paddingHorizontal: 10,
+        borderRadius: 12,
+        alignSelf: 'flex-start', // 셀 내부에서 왼쪽으로 붙이기
     },
-    statusText: { fontSize: 12, fontWeight: 'bold' },
-    actionsContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 16,
+    statusText: { 
+        fontSize: 12, 
+        fontWeight: 'bold' 
     },
-    actionTextPrimary: {
-        fontSize: 14,
+    actionButton: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        backgroundColor: '#F1F5F9',
+        alignSelf: 'flex-start', // 셀 내부에서 왼쪽으로 붙이기
+    },
+    actionButtonText: {
+        fontSize: 12,
         fontWeight: '500',
-        color: Colors.pacet.primary,
-    },
-    actionTextSecondary: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#64748B',
-    },
+        color: '#475569',
+    }
 }); 

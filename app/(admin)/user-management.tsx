@@ -3,13 +3,14 @@ import { UserListItem } from '@/components/admin/user_management/UserListItem';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors } from '@/constants/Colors';
+import { useUsers } from '@/context/UserContext';
 import { TrainerDetails, useUserManagement } from '@/hooks/useUserManagement';
 import { commonStyles } from '@/styles/commonStyles';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-type SortKey = keyof Pick<TrainerDetails, 'name' | 'assignedMembersCount' | 'fulfillmentRate'>;
+type SortKey = keyof Pick<TrainerDetails, 'name' | 'assignedMembersCount'>;
 
 const SortableHeader = ({ 
     sortKey, 
@@ -44,6 +45,7 @@ const EmptyListComponent = () => (
 
 export default function UserManagementScreen() {
     const allTrainers = useUserManagement();
+    const { updateUserStatus } = useUsers();
     const [searchQuery, setSearchQuery] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; asc: boolean }>({ key: 'name', asc: true });
 
@@ -52,6 +54,18 @@ export default function UserManagementScreen() {
             if (prev.key === key) return { key, asc: !prev.asc };
             return { key, asc: true };
         });
+    };
+    
+    const handleToggleStatus = (trainer: TrainerDetails) => {
+        const newStatus = trainer.status === 'active' ? 'inactive' : 'active';
+        Alert.alert(
+            `${newStatus === 'active' ? '활성화' : '비활성화'} 확인`,
+            `${trainer.name} 트레이너를 ${newStatus === 'active' ? '활성' : '비활성'} 상태로 변경하시겠습니까?`,
+            [
+                { text: '취소', style: 'cancel' },
+                { text: '확인', onPress: () => updateUserStatus(trainer.id, newStatus) }
+            ]
+        );
     };
 
     const sortedAndFilteredTrainers = useMemo(() => {
@@ -78,11 +92,10 @@ export default function UserManagementScreen() {
 
     const TableHeader = () => (
         <View style={styles.tableHeader}>
-            <SortableHeader sortKey="name" currentSort={sortConfig} onSort={handleSort} label="트레이너" style={{ flex: 2.5 }} />
+            <SortableHeader sortKey="name" currentSort={sortConfig} onSort={handleSort} label="트레이너" style={{ flex: 2 }} />
             <SortableHeader sortKey="assignedMembersCount" currentSort={sortConfig} onSort={handleSort} label="담당 회원" style={{ flex: 1 }} />
-            <SortableHeader sortKey="fulfillmentRate" currentSort={sortConfig} onSort={handleSort} label="약속 이행률" style={{ flex: 1 }} />
-            <ThemedText style={[styles.headerText, { flex: 1 }]}>상태</ThemedText>
-            <ThemedText style={[styles.headerText, { flex: 1, textAlign: 'right' }]}>관리</ThemedText>
+            <ThemedText style={[styles.headerText, { flex: 1.2 }]}>상태</ThemedText>
+            <ThemedText style={[styles.headerText, { flex: 1 }]}>관리</ThemedText>
         </View>
     );
 
@@ -95,7 +108,7 @@ export default function UserManagementScreen() {
                     keyExtractor={item => item.id}
                     ListHeaderComponent={<TableHeader />}
                     ListEmptyComponent={<EmptyListComponent />}
-                    renderItem={({ item }) => <UserListItem trainer={item} />}
+                    renderItem={({ item }) => <UserListItem trainer={item} onToggleStatus={handleToggleStatus} />}
                     stickyHeaderIndices={[0]}
                     contentContainerStyle={{backgroundColor: 'white', flexGrow: 1}}
                 />
@@ -122,6 +135,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: '#F1F5F9', // slate-100
+        alignItems: 'center',
     },
     headerText: {
         fontSize: 12,

@@ -8,7 +8,7 @@ const USER_STORAGE_KEY = '@pacet-time-manager-users';
 
 interface AuthContextType {
   user: User | null;
-  signIn: (email: string, password: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => void;
   isLoading: boolean;
 }
@@ -47,18 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<boolean> => {
+  const signIn = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     const foundUser = users.find(
       (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
     );
 
-    if (foundUser) {
-      setUser(foundUser);
-      await AsyncStorage.setItem("user", JSON.stringify(foundUser));
-      return true;
-    } else {
-      return false;
+    if (!foundUser) {
+      return { success: false, message: "이메일 또는 비밀번호가 올바르지 않습니다." };
     }
+
+    if (foundUser.status === 'inactive') {
+      return { success: false, message: "이 계정은 비활성화되었습니다. 관리자에게 문의하세요." };
+    }
+
+    setUser(foundUser);
+    await AsyncStorage.setItem("user", JSON.stringify(foundUser));
+    return { success: true };
   };
 
   const logout = async () => {

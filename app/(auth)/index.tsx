@@ -38,9 +38,13 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    const success = await signIn(email, password);
-    if (!success) {
-      Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
+    if (!email || !password) {
+      Alert.alert("입력 오류", "이메일과 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+    const result = await signIn(email, password);
+    if (!result.success) {
+      Alert.alert("로그인 실패", result.message);
     } else {
       if (rememberMe) {
         await AsyncStorage.setItem(REMEMBER_ME_KEY, email);
