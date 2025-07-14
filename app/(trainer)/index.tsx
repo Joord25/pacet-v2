@@ -126,7 +126,7 @@ export default function TrainerDashboardScreen() {
   if (!trainer) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
+        <View style={styles.contentContainer}>
           <ThemedText>트레이너 정보를 찾을 수 없습니다.</ThemedText>
         </View>
       </SafeAreaView>
@@ -146,40 +146,42 @@ export default function TrainerDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.headerTitle}>
-            {trainer.name}님,
-          </ThemedText>
-          <ThemedText style={styles.headerSubtitle}>
-            오늘도 활기찬 하루 보내세요! 💪
-          </ThemedText>
-        </View>
-
-        <TrainerSummaryCard
-          totalClasses={stats.totalClasses}
-          attendedClasses={stats.attendedClasses}
-          monthlySessions={stats.monthlySessions}
-          monthlySales={stats.monthlySales}
-        />
-        <ActionButtonGroup />
-        <ThemedText style={styles.listTitle}>오늘의 수업</ThemedText>
-
-        <FlatList
-          data={todaySessions}
-          renderItem={renderScheduleItem}
-          keyExtractor={(item) => item.sessionId}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <ThemedText style={styles.emptyText}>
-                오늘 예정된 수업이 없습니다.
+      <FlatList
+        ListHeaderComponent={
+          <>
+            <View style={styles.header}>
+              <ThemedText type="title" style={styles.headerTitle}>
+                {trainer.name}님,
+              </ThemedText>
+              <ThemedText style={styles.headerSubtitle}>
+                오늘도 활기찬 하루 보내세요! 💪
               </ThemedText>
             </View>
-          }
-        />
-      </View>
+
+            <TrainerSummaryCard
+              totalClasses={stats.totalClasses}
+              attendedClasses={stats.attendedClasses}
+              monthlySessions={stats.monthlySessions}
+              monthlySales={stats.monthlySales}
+            />
+            <ActionButtonGroup />
+            <ThemedText style={styles.listTitle}>오늘의 수업</ThemedText>
+          </>
+        }
+        data={todaySessions}
+        renderItem={renderScheduleItem}
+        keyExtractor={(item) => item.sessionId}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <ThemedText style={styles.emptyText}>
+              오늘 예정된 수업이 없습니다.
+            </ThemedText>
+          </View>
+        }
+      />
 
       <InviteMemberModal
         visible={isModalVisible}
@@ -204,10 +206,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.pacet.lightBg,
   },
-  container: {
-    flex: 1,
+  contentContainer: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 100, // FAB에 가려지지 않도록 충분한 패딩 추가
   },
   header: {
     marginBottom: 24,
@@ -225,10 +227,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 16,
     color: Colors.pacet.darkText,
-  },
-  listContainer: {
-    gap: 12,
-    paddingBottom: 100, // FAB에 가려지지 않도록 충분한 패딩 추가
   },
   emptyContainer: {
     flex: 1,

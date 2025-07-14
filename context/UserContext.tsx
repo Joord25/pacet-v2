@@ -13,6 +13,7 @@ interface UserContextType {
   updateUserStatus: (userId: string, status: 'active' | 'inactive') => void;
   addUserSessions: (userId: string, sessionsToAdd: number) => void;
   assignTrainerToMember: (memberId: string, trainerId: string) => void; // 함수 추가
+  promoteToTrainer: (userId: string) => void;
   isDataLoaded: boolean;
 }
 
@@ -105,27 +106,31 @@ export const UserProvider = ({ children }: UserProviderProps) => {
   }, []);
 
   const assignTrainerToMember = useCallback((memberId: string, trainerId: string) => {
-    setUsers(currentUsers =>
-      currentUsers.map(user =>
-        user.id === memberId ? { ...user, trainerId: trainerId } : user
+    setUsers(prevUsers => 
+      prevUsers.map(u => 
+        u.id === memberId ? { ...u, assignedTrainerId: trainerId } : u
       )
     );
   }, []);
 
+  const promoteToTrainer = useCallback((userId: string) => {
+    setUsers(prevUsers =>
+      prevUsers.map(u =>
+        u.id === userId ? { ...u, role: 'trainer' } : u
+      )
+    );
+  }, []);
 
   const value = {
     users,
+    isDataLoaded,
     setUsers,
     addUser,
     updateUserStatus,
     addUserSessions,
-    assignTrainerToMember, // value에 추가
-    isDataLoaded,
+    assignTrainerToMember,
+    promoteToTrainer,
   };
 
-  return (
-    <UserContext.Provider value={value}>
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }; 

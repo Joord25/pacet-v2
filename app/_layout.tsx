@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ContractProvider } from '@/context/ContractContext';
+import { InvitationProvider } from '@/context/InvitationContext';
 import { SessionProvider, useSessions } from '@/context/SessionContext';
 import { UserProvider, useUsers } from '@/context/UserContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -98,13 +99,15 @@ function AppProviders({ children }: { children: React.ReactNode }) {
       <MenuProvider>
         <UserProvider>
           <AuthProvider>
-            <SessionProvider>
-              <ContractProvider>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  {children}
-                </ThemeProvider>
-              </ContractProvider>
-            </SessionProvider>
+            <InvitationProvider>
+              <SessionProvider>
+                <ContractProvider>
+                  <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                    {children}
+                  </ThemeProvider>
+                </ContractProvider>
+              </SessionProvider>
+            </InvitationProvider>
           </AuthProvider>
         </UserProvider>
       </MenuProvider>

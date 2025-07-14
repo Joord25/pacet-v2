@@ -3,23 +3,25 @@ import { AuthTextInput } from "@/components/auth/AuthTextInput";
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useContracts } from "@/context/ContractContext";
+import { useInvitations } from "@/context/InvitationContext";
 import { useUsers } from "@/context/UserContext";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { addUser, users } = useUsers();
+  const { addUser, users, promoteToTrainer } = useUsers();
   const { linkInvitation, contracts } = useContracts();
+  const { checkForInvitation, consumeInvitation } = useInvitations();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -34,13 +36,21 @@ export default function SignUpScreen() {
         return;
       }
 
-      const invitation = contracts.find(c =>
+      // 1. 트레이너 초대 먼저 확인
+      const trainerInvitation = checkForInvitation(email);
+      if (trainerInvitation) {
+        setInvitationInfo(`👑 관리자로부터 온 트레이너 초대장입니다!`);
+        return; // 트레이너 초대가 있으면 여기서 종료
+      }
+
+      // 2. 회원 초대 확인
+      const memberInvitation = contracts.find(c =>
         c.invitedEmail?.toLowerCase() === email.toLowerCase() &&
         c.status === 'invited'
       );
 
-      if (invitation) {
-        const trainer = users.find(u => u.id === invitation.trainerId);
+      if (memberInvitation) {
+        const trainer = users.find(u => u.id === memberInvitation.trainerId);
         const trainerName = trainer ? trainer.name : '트레이너';
         setInvitationInfo(`✨ ${trainerName}님으로부터 온 초대장이 있습니다!`);
       } else {
@@ -56,7 +66,7 @@ export default function SignUpScreen() {
     return () => {
       clearTimeout(handler);
     };
-  }, [email, contracts, users]);
+  }, [email, contracts, users, checkForInvitation]);
 
   const handleSignUp = () => {
     // 1. Validation
@@ -81,7 +91,20 @@ export default function SignUpScreen() {
     // 2. Add user
     const newUser = addUser({ name, email, password });
 
-    // 3. Link invitation if exists
+    // 3. 계약 또는 초대 처리
+    const trainerInvitation = checkForInvitation(newUser.email);
+    if (trainerInvitation) {
+      promoteToTrainer(newUser.id);
+      consumeInvitation(newUser.email);
+      Alert.alert(
+        "트레이너 등록 완료",
+        "초대받은 트레이너로 가입되었습니다. 로그인 페이지로 이동합니다.",
+        [{ text: "확인", onPress: () => router.back() }]
+      );
+      return; // 트레이너 가입 시 아래 로직은 실행하지 않음
+    }
+
+    // 기존 회원 초대 로직
     linkInvitation(newUser.email, newUser.id);
     
     // 4. Notify and navigate

@@ -42,10 +42,17 @@ export const useAdminDashboard = (selectedDate: Date) => {
         const trainerPerformanceData = trainers.map(trainer => {
             const trainerSessions = selectedMonthSessions.filter(s => s.trainerId === trainer.id);
             const totalScheduled = trainerSessions.length;
-            const cancelledByTrainer = trainerSessions.filter(s => s.status === 'cancelled' && s.cancellationReason === 'trainer').length;
             
-            const rate = totalScheduled > 0 ? Math.round(((totalScheduled - cancelledByTrainer) / totalScheduled) * 100) : 100;
-            return { name: trainer.name, rate };
+            // 상세 리포트와 로직 통일: 지각 + 트레이너 귀책 취소 모두 위반으로 처리
+            const lateCount = trainerSessions.filter(s => 
+              s.trainerCheckInTime &&
+              new Date(s.trainerCheckInTime) > new Date(`${s.sessionDate}T${s.sessionTime}`)
+            ).length;
+            const cancelledByTrainer = trainerSessions.filter(s => s.status === 'cancelled' && s.cancellationReason === 'trainer').length;
+            const totalViolations = lateCount + cancelledByTrainer;
+
+            const rate = totalScheduled > 0 ? Math.round(((totalScheduled - totalViolations) / totalScheduled) * 100) : 100;
+            return { id: trainer.id, name: trainer.name, rate };
         }).sort((a, b) => b.rate - a.rate);
 
 
