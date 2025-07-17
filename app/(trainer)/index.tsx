@@ -1,119 +1,48 @@
 import { ThemedText } from "@/components/ThemedText";
 import { ActionButtonGroup } from "@/components/trainer/ActionButtonGroup";
+import { IntegratedSummaryCard } from "@/components/trainer/IntegratedSummaryCard"; // 🚨 변경
 import { InviteMemberModal } from "@/components/trainer/InviteMemberModal";
 import { ScheduleItem } from "@/components/trainer/ScheduleItem";
-import { TrainerSummaryCard } from "@/components/trainer/TrainerSummaryCard";
-import { Colors } from "@/constants/Colors"; // 오렌지색 사용을 위해 import
+import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { useContracts } from "@/context/ContractContext"; // 🚨 계약 정보 가져오기
-import { useSessions } from "@/context/SessionContext";
-import { useUsers } from "@/context/UserContext";
-import { Session } from "@/types"; // 🚨 @/types에서 직접 가져오도록 수정
-import { Ionicons } from "@expo/vector-icons"; // 아이콘 사용을 위해 import
+import { useContracts } from "@/context/ContractContext";
+import { useTrainerDashboardData } from "@/hooks/useTrainerDashboardData"; // 🚨 변경
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
-import React, { useLayoutEffect, useMemo, useState } from "react"; // 🚨 useState 추가
+import React, { useLayoutEffect, useState } from "react"; // 🚨 useMemo 제거 예정
 import {
-    FlatList,
-    SafeAreaView,
-    StyleSheet, // 🚨 Modal 추가
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-// --- 데이터 처리 로직 ---
-const useTrainerDashboardData = (
-  trainerId: string,
-  sessions: Session[],
-  contracts: any[] // 🚨 contracts 추가
-) => {
-  const { users } = useUsers();
-  const trainer = useMemo(
-    () => users.find((u) => u.id === trainerId && u.role === "trainer"),
-    [trainerId, users]
-  );
 
-  const todaySessions = useMemo(() => {
-    // 로컬 시간 기준으로 오늘의 YYYY-MM-DD 문자열을 생성
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const today_string = `${year}-${month}-${day}`;
-
-    return sessions
-      .filter(
-        (s) =>
-          s.trainerId === trainerId &&
-          s.sessionDate === today_string &&
-          s.status !== 'cancelled'
-      )
-      .map((session) => {
-        const member = users.find((u) => u.id === session.memberId);
-        return {
-          ...session,
-          memberName: member?.name || "알 수 없음",
-        };
-      })
-      .sort(
-        (a, b) =>
-          new Date(`${a.sessionDate}T${a.sessionTime}`).getTime() -
-          new Date(`${b.sessionDate}T${b.sessionTime}`).getTime()
-      );
-  }, [trainerId, sessions, users]);
-
-  const stats = useMemo(() => {
-    const totalClasses = todaySessions.length;
-    const attendedClasses = todaySessions.filter(
-      (s) => s.status === "completed" || s.status === "trainer-attended"
-    ).length;
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const monthlySessions = sessions.filter(s => {
-      const sessionDate = new Date(s.sessionDate);
-      return (
-        s.trainerId === trainerId &&
-        ['completed', 'late', 'no-show'].includes(s.status) &&
-        sessionDate.getFullYear() === currentYear &&
-        sessionDate.getMonth() === currentMonth
-      );
-    }).length;
-
-    const monthlySales = contracts
-      .filter(c => {
-        const startDate = new Date(c.startDate);
-        return (
-          c.trainerId === trainerId &&
-          c.status === 'active' &&
-          startDate.getFullYear() === currentYear &&
-          startDate.getMonth() === currentMonth
-        );
-      })
-      .reduce((sum, c) => sum + c.price, 0);
-
-    return { totalClasses, attendedClasses, monthlySessions, monthlySales };
-  }, [trainerId, sessions, contracts, todaySessions]);
-
-  return { trainer, todaySessions, stats };
-};
-// --------------------
+// 🚨 기존 데이터 처리 로직은 모두 삭제하고, 새로 만든 훅을 사용합니다.
 
 export default function TrainerDashboardScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { sessions } = useSessions();
-  const { contracts, inviteMember } = useContracts(); 
-
+  const { inviteMember } = useContracts();
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const { trainer, todaySessions, stats } = useTrainerDashboardData(
-    user?.id || "",
-    sessions,
-    contracts
-  );
+  // 🚨 새로 만든 훅 사용
+  const {
+    isLoading,
+    todayScheduleCount,
+    completedScheduleCount,
+    monthlyRevenue,
+    onTimeRate,
+    monthlyCompletedSessions,
+    monthlyIssues,
+    currentMonth,
+    todaySessions, // 오늘의 스케줄 리스트를 위해 받아옵니다.
+    trainer,
+  } = useTrainerDashboardData();
+
 
   useLayoutEffect(() => {
     if (trainer) {
@@ -123,12 +52,11 @@ export default function TrainerDashboardScreen() {
     }
   }, [navigation, trainer]);
 
-  if (!trainer) {
+  // 🚨 로딩 상태 처리
+  if (isLoading || !trainer) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.contentContainer}>
-          <ThemedText>트레이너 정보를 찾을 수 없습니다.</ThemedText>
-        </View>
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.pacet.primary} />
       </SafeAreaView>
     );
   }
@@ -158,12 +86,17 @@ export default function TrainerDashboardScreen() {
               </ThemedText>
             </View>
 
-            <TrainerSummaryCard
-              totalClasses={stats.totalClasses}
-              attendedClasses={stats.attendedClasses}
-              monthlySessions={stats.monthlySessions}
-              monthlySales={stats.monthlySales}
+            {/* 🚨 새로운 통합 카드로 교체 */}
+            <IntegratedSummaryCard
+              todayScheduleCount={todayScheduleCount}
+              completedScheduleCount={completedScheduleCount}
+              monthlyRevenue={monthlyRevenue}
+              onTimeRate={onTimeRate}
+              monthlyCompletedSessions={monthlyCompletedSessions}
+              monthlyIssues={monthlyIssues}
+              currentMonth={currentMonth}
             />
+
             <ActionButtonGroup />
             <ThemedText style={styles.listTitle}>오늘의 수업</ThemedText>
           </>
@@ -189,7 +122,6 @@ export default function TrainerDashboardScreen() {
         onInvite={inviteMember}
       />
 
-      {/* --- 회원 초대 플로팅 버튼 --- */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setIsModalVisible(true)}
@@ -205,6 +137,10 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.pacet.lightBg,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contentContainer: {
     paddingHorizontal: 20,

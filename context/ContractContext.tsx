@@ -32,13 +32,8 @@ export const ContractProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const sessionContext = useContext(SessionContext);
 
-  if (!sessionContext) {
-    // 세션 컨텍스트가 없는 경우 로딩 상태나 에러 처리를 할 수 있습니다.
-    // 여기서는 간단히 null을 반환하여 렌더링을 막습니다.
-    return null;
-  }
-
-  const { sessions } = sessionContext;
+  // 🚨 수정: sessionContext가 undefined일 경우를 대비하여 기본값 할당
+  const { sessions, isDataLoaded: isSessionDataLoaded } = sessionContext || { sessions: [], isDataLoaded: false };
 
   const recomputeAndSetContracts = useCallback(async (
     contractsToProcess: Contract[],
@@ -83,10 +78,11 @@ export const ContractProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // sessions 데이터가 준비된 후에 contracts를 로드합니다.
-    if (sessionContext.isDataLoaded) {
+    // 🚨 수정: isSessionDataLoaded 변수 사용
+    if (isSessionDataLoaded) {
       loadContracts();
     }
-  }, [sessionContext.isDataLoaded, sessions, recomputeAndSetContracts]);
+  }, [isSessionDataLoaded, sessions, recomputeAndSetContracts]);
 
   // 계약 정보가 변경될 때마다 스토리지에 자동 저장
   useEffect(() => {
